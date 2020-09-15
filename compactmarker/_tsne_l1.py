@@ -14,9 +14,11 @@ class _RegTsneModel(nn.Module):
 
     def __init__(self, P, X, w):
         super(_RegTsneModel, self).__init__()
-
+        self.n_instances, self.n_features = X.shape
         if w is None:
             w = np.random.uniform(size=[1, self.n_features])
+        else:
+            w = np.array(w).reshape([1, self.n_features])
 
         P = P + P.T
         P = P / np.sum(P)
@@ -25,7 +27,7 @@ class _RegTsneModel(nn.Module):
         self.P = torch.tensor(P, dtype=torch.float, requires_grad=False)
         self.X = torch.tensor(X, dtype=torch.float, requires_grad=False)
         self.P /= 4
-        self.n_instances, self.n_features = X.shape
+
         self.W = torch.nn.Parameter(
             torch.tensor(w, dtype=torch.float, requires_grad=True))
 
@@ -79,16 +81,15 @@ class TsneL1(_BaseSelector):
         return P, beta
 
     @classmethod
-    def tune(cls, X, n_features, w=None,
-             init_lasso=1e-5, min_lasso=1e-8, max_lasso=1e-2,
+    def tune(cls, X, target_n_features, w=None,
+             min_lasso=1e-8, max_lasso=1e-2,
              P=None, beta=None, torlerance=0, smallest_log10_fold_change=0.1, max_iter=100,
              max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100, eps=1e-12, verbosity=2):
         """
-
-        :param X:
-        :param n_features:
+        Automatically find proper lasso strength that returns the preferred number of markers
+        :param X: Expression matrix, cells x features
+        :param target_n_features: number of features
         :param w:
-        :param init_lasso:
         :param min_lasso:
         :param max_lasso:
         :param P:
@@ -106,18 +107,29 @@ class TsneL1(_BaseSelector):
         verbose_print = VerbosePrint(verbosity)
         tictoc = TicToc()
 
-        log_lasso = np.log10(init_lasso)
+        n_features = X.shape[1]
+
+        if w is None:
+            w = np.random.uniform(size=[1, n_features])
+        else:
+            w = np.array(w).reshape([1, n_features])
+
         max_log_lasso = np.log10(max_lasso)
         min_log_lasso = np.log10(min_lasso)
 
         P, beta = cls.resolve_P_beta(X, P, beta, tictoc, verbose_print.prints)
 
+        sup = n_features
+        inf = 0
+
         for it in range(max_iter):
-            verbose_print(0, "Iteration", it, "with lasso =", 10 ** log_lasso, "...", end=" ")
+            log_lasso = max_log_lasso / 2 + min_log_lasso / 2
+            verbose_print(0, "Iteration", it, "with lasso =", 10 ** log_lasso,
+                          "in [", 10 ** min_log_lasso, ",", 10 ** max_log_lasso, "]...", end=" ")
             model = cls(w, 10 ** log_lasso, max_outer_iter, max_inner_iter, owlqn_history_size, eps, verbosity - 1)
             n = model._fit(X, w, P, beta).get_mask().sum()
-            verbose_print(0, "Done. Number of features:", n, ".")
-            if np.abs(n - n_features) <= torlerance:  # Good number of features, return
+            verbose_print(0, "Done. Number of features:", n, ".", tictoc.toc())
+            if np.abs(n - target_n_features) <= torlerance:  # Good number of features, return
                 break
 
             if it > 0 and np.abs(log_lasso - prev_log_lasso) < smallest_log10_fold_change:
@@ -126,10 +138,18 @@ class TsneL1(_BaseSelector):
 
             prev_log_lasso = log_lasso
 
-            if n > n_features and n - n_features > torlerance:  # Too many features, need more l1 regularization
-                log_lasso = max_log_lasso / 2 + log_lasso / 2
-            elif n < n_features and n_features - n < torlerance:  # Too few features, need less l1 regularization
-                log_lasso = min_log_lasso / 2 + log_lasso / 2
+            if n > target_n_features:  # Too many features, need more l1 regularization
+                if n <= sup:
+                    sup = n
+                else:
+                    warnings.warn("Monotonicity is violated. Value larger than current supremum.")
+                min_log_lasso = log_lasso
+            elif n < target_n_features:  # Too few features, need less l1 regularization
+                if n >= inf:
+                    inf = n
+                else:
+                    warnings.warn("Monotonicity is violated. Value lower than current infimum.")
+                max_log_lasso = log_lasso
         else:  # max_iter reached
             warnings.warn("max_iter before reached achieving target number of features.")
 
@@ -161,14 +181,14 @@ class TsneL1(_BaseSelector):
                 return loss
 
             loss = optimizer.step(closure)
-            self.verbose_print(1, t, 'loss:', loss, "Nonzero:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
+            self.verbose_print(1, t, 'loss:', loss.item(), "Nonzero:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
                                tictoc.toc())
 
         loss = model.forward()
-        self.verbose_print(1, 'final', 'loss:', loss, "sparsity:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
+        self.verbose_print(1, 'final', 'loss:', loss.item(), "sparsity:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
                            tictoc.toc())
 
-        self.w = model.W.detach().numpy()
+        self.w = model.W.detach().numpy().squeeze()
 
         return self
 
