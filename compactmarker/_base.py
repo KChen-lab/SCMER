@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod, abstractproperty
 from ._utils import VerbosePrint
 
+
 class _BaseSelector(ABC):
     @abstractmethod
     def __init__(self, verbosity):
