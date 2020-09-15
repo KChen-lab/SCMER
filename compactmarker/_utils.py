@@ -37,4 +37,4 @@ class VerbosePrint:
         :param priority: print the message only if the priority is smaller than verbosity
         :return: None
         """
-        return lambda *args, **kwargs: self.print(priority, *args, **kwargs)
+        return lambda *args, **kwargs: self(priority, *args, **kwargs)
