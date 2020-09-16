@@ -35,3 +35,9 @@ selected_adata = model.transform(adata)
 
 Note that the model has a space complexity of O(n^2), where n is the number of cells. 
 Thus, we recommend that you subsample your data to 5,000 to 10,000 cells.
+
+Additional Parameters
+---------------------
+`n_pcs`: If you want to use PCs to calculate the pairwise distances, specify the number of PCs. If you want to use the expression directly, set it to `None`. Default: `None`.
+`w`: Initial value of w. Leaving it as `None` to randomly generate one. Default: `None`.
+`owlqn_history_size`: History size for OWLQN optimization. Set to a smaller value if you encounter an insufficient memory problem. Default: `100`.
