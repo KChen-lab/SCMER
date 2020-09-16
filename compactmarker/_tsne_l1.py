@@ -6,13 +6,14 @@ import numpy as np
 from torch import nn
 import torch
 import scipy.stats
+from sklearn.decomposition import PCA
 
 from ._utils import TicToc, VerbosePrint
 
 
 class _RegTsneModel(nn.Module):
 
-    def __init__(self, P, X, w):
+    def __init__(self, P, X, w, beta):
         super(_RegTsneModel, self).__init__()
         self.n_instances, self.n_features = X.shape
         if w is None:
@@ -27,7 +28,10 @@ class _RegTsneModel(nn.Module):
         self.P = torch.tensor(P, dtype=torch.float, requires_grad=False)
         self.X = torch.tensor(X, dtype=torch.float, requires_grad=False)
         self.P /= 4
-
+        if beta is not None:
+            self.beta = torch.tensor(beta, dtype=torch.float, requires_grad=False)
+        else:
+            self.beta = None
         self.W = torch.nn.Parameter(
             torch.tensor(w, dtype=torch.float, requires_grad=True))
 
@@ -38,6 +42,9 @@ class _RegTsneModel(nn.Module):
         pdist2 = YY - 2. * Y @ Y.T + YY.T
         temp = 1. / (1. + pdist2)
         temp[range(self.n_instances), range(self.n_instances)] = 0.
+        if self.beta is not None:
+            temp = temp * self.beta
+            temp = temp + torch.transpose(temp, 0, 1)
         Q = temp / temp.sum()
         Q = torch.max(Q, torch.tensor(1e-12, dtype=torch.float))
         self.Q = Q
@@ -45,27 +52,31 @@ class _RegTsneModel(nn.Module):
 
 
 class TsneL1(_BaseSelector):
-    def __init__(self, w=None, lasso=1e-4, max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100, eps=1e-12,
-                 verbosity=2):
+    def __init__(self, w=None, lasso=1e-4, n_pcs=None, max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
+                 eps=1e-12, verbosity=2):
         super(TsneL1, self).__init__(verbosity)
         self._max_outer_iter = max_outer_iter
         self._max_inner_iter = max_inner_iter
         self._owlqn_history_size = owlqn_history_size
+        self._n_pcs = n_pcs
         self.w = w
         self._lasso = lasso
         self._eps = eps
 
-    def fit(self, X, w=None):
-        return self._fit(X, w)
+    def fit(self, X):
+        return self._fit(X)
 
     def get_mask(self):
         return self.w > self._eps
 
     def transform(self, X):
+        # if mask_only:
         return X[:, self.get_mask()]
+        # else:
+        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
 
-    def fit_transform(self, X, w=None):
-        return self.fit(X, w).transform(X)
+    def fit_transform(self, X):
+        return self.fit(X).transform(X)
 
     @staticmethod
     def resolve_P_beta(X, P, beta, tictoc, print_callbacks):
@@ -81,7 +92,7 @@ class TsneL1(_BaseSelector):
         return P, beta
 
     @classmethod
-    def tune(cls, X, target_n_features, w=None,
+    def tune(cls, X, target_n_features, w=None, n_pcs=None,
              min_lasso=1e-8, max_lasso=1e-2,
              P=None, beta=None, torlerance=0, smallest_log10_fold_change=0.1, max_iter=100,
              max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100, eps=1e-12, verbosity=2):
@@ -117,7 +128,11 @@ class TsneL1(_BaseSelector):
         max_log_lasso = np.log10(max_lasso)
         min_log_lasso = np.log10(min_lasso)
 
-        P, beta = cls.resolve_P_beta(X, P, beta, tictoc, verbose_print.prints)
+        if n_pcs is None:
+            P, beta = cls.resolve_P_beta(X, P, beta, tictoc, verbose_print.prints)
+        else:
+            pcs = PCA(n_pcs).fit_transform(X)
+            P, beta = cls.resolve_P_beta(pcs, None, None, tictoc, verbose_print.prints)
 
         sup = n_features
         inf = 0
@@ -127,7 +142,7 @@ class TsneL1(_BaseSelector):
             verbose_print(0, "Iteration", it, "with lasso =", 10 ** log_lasso,
                           "in [", 10 ** min_log_lasso, ",", 10 ** max_log_lasso, "]...", end=" ")
             model = cls(w, 10 ** log_lasso, max_outer_iter, max_inner_iter, owlqn_history_size, eps, verbosity - 1)
-            n = model._fit(X, w, P, beta).get_mask().sum()
+            n = model._fit(X, P, beta).get_mask().sum()
             verbose_print(0, "Done. Number of features:", n, ".", tictoc.toc())
             if np.abs(n - target_n_features) <= torlerance:  # Good number of features, return
                 break
@@ -155,7 +170,7 @@ class TsneL1(_BaseSelector):
 
         return model
 
-    def _fit(self, X, w, P=None, beta=None):
+    def _fit(self, X, P=None, beta=None):
         """
 
         :param X:
@@ -164,10 +179,14 @@ class TsneL1(_BaseSelector):
         """
 
         tictoc = TicToc()
-        P, beta = self.resolve_P_beta(X, P, beta, tictoc, self.verbose_print.prints)
+        if self._n_pcs is None:
+            P, beta = self.resolve_P_beta(X, P, beta, tictoc, self.verbose_print.prints)
+        else:
+            pcs = PCA(self._n_pcs).fit_transform(X)
+            P, beta = self.resolve_P_beta(pcs, None, None, tictoc, self.verbose_print.prints)
 
         self.verbose_print(0, "Optimizing...")
-        model = _RegTsneModel(P, X, self.w)
+        model = _RegTsneModel(P, X, self.w, beta)
         optimizer = OWLQN0(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
                            max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
 
