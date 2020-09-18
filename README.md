@@ -19,8 +19,7 @@ import compactmarker._tsne_l1
 
 Then, if you want to train the model with a given strength of l1-regularization:
 ```python
-model = compactmarker._tsne_l1.TsneL1(lasso=1e-3)
-model.fit(adata.X)
+model = compactmarker._tsne_l1.TsneL1(lasso=1e-3).fit(adata.X)
 ```
 
 Or, if you want to keep a specific number of features:
