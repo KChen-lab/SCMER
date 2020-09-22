@@ -262,14 +262,17 @@ class OWLQN0(Optimizer):
                 view = p.grad.view(-1)
             
             # SL: find psuedo-gradient
+            # SL: at point 0
             view = view.clone()
             border_case = (p == 0.).reshape(-1)
             go_left = (view > lasso)
             go_right = (view < -lasso)
             stay = ~(go_left | go_right)
-            view[go_left & border_case] -= lasso
-            view[go_right & border_case] += lasso
+            view[go_left & border_case] -= lasso # go left, but be slower (gradient - lasso > 0)
+            view[go_right & border_case] += lasso # go right, but also be slower (gradient + lasso < 0)
             view[stay & border_case] = 0.
+
+            # SL: at non-zero points
             view[(p > 0.).reshape(-1)] += lasso
             view[(p < 0.).reshape(-1)] -= lasso
 
