@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from ._utils import VerbosePrint
 
 
-class _BaseSelector(ABC):
+class _ABCSelector(ABC):
     @abstractmethod
     def __init__(self, verbosity):
         self.verbose_print = VerbosePrint(verbosity)
@@ -17,4 +17,18 @@ class _BaseSelector(ABC):
 
     @abstractmethod
     def fit_transform(self, X):
+        pass
+
+
+class _ABCTsneModel(ABC):
+    @abstractmethod
+    def __init__(self, P, X, w, beta, dtype, cdist_compute_mode, t_distr):
+        pass
+
+    @abstractmethod
+    def parameters(self):
+        pass
+
+    @abstractmethod
+    def forward(self):
         pass
