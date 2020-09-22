@@ -1,59 +1,44 @@
-from ._base import _BaseSelector
+import torch
+from typing import Type
+from ._interfaces import _ABCSelector, _ABCTsneModel
 from ._owlqn import OWLQN0
 
 import warnings
 import numpy as np
-from torch import nn
-import torch
+
 import scipy.stats
 from sklearn.decomposition import PCA
 
 from ._utils import TicToc, VerbosePrint
+from ._torch_models import _RegTsneModel, _StratifiedRegTsneModel
 
 
-class _RegTsneModel(nn.Module):
+class TsneL1(_ABCSelector):
+    def __init__(self, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=True,
+                 max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
+                 eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
+                 t_distr=True):
+        """
 
-    def __init__(self, P, X, w, beta):
-        super(_RegTsneModel, self).__init__()
-        self.n_instances, self.n_features = X.shape
-        if w is None:
-            w = np.random.uniform(size=[1, self.n_features])
-        else:
-            w = np.array(w).reshape([1, self.n_features])
-
-        P = P + P.T
-        P = P / np.sum(P)
-        P = P * 4
-        P = np.maximum(P, 1e-12)
-        self.P = torch.tensor(P, dtype=torch.float, requires_grad=False)
-        self.X = torch.tensor(X, dtype=torch.float, requires_grad=False)
-        self.P /= 4
-        if beta is not None:
-            self.beta = torch.tensor(beta, dtype=torch.float, requires_grad=False)
-        else:
-            self.beta = None
-        self.W = torch.nn.Parameter(
-            torch.tensor(w, dtype=torch.float, requires_grad=True))
-
-    def forward(self):
-        P = self.P
-        Y = self.X * self.W
-        YY = (Y ** 2).sum(axis=1, keepdim=True)
-        pdist2 = YY - 2. * Y @ Y.T + YY.T
-        temp = 1. / (1. + pdist2)
-        temp[range(self.n_instances), range(self.n_instances)] = 0.
-        if self.beta is not None:
-            temp = temp * self.beta
-            temp = temp + torch.transpose(temp, 0, 1)
-        Q = temp / temp.sum()
-        Q = torch.max(Q, torch.tensor(1e-12, dtype=torch.float))
-        self.Q = Q
-        return (P * torch.log(P / Q)).sum()
-
-
-class TsneL1(_BaseSelector):
-    def __init__(self, w=None, lasso=1e-4, n_pcs=None, max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
-                 eps=1e-12, verbosity=2):
+        :param w:
+        :param lasso:
+        :param n_pcs:
+        :param perplexity:
+        :param use_beta_in_Q:
+        :param max_outer_iter:
+        :param max_inner_iter:
+        :param owlqn_history_size:
+        :param eps:
+        :param verbosity:
+        :param torch_precision: The dtype used inside torch model. By default, tf.float32 (a.k.a. tf.float) is used.
+            However, if precision become an issue, tf.float64 may be worth trying. You can input 32, "32", 64, or "64".
+        :param torch_cdist_compute_mode: cdist_compute_mode: compute mode for torch.cdist. By default,
+            "use_mm_for_euclid_dist" to (daramatically) improve performance. However, if numerical stability became an
+            issue, "donot_use_mm_for_euclid_dist" may be used instead. This option does not affect distances computed
+            outside of pytorch, e.g., matrix P. Only matrix Q is affect.
+        :param t_distr: By default, use t-distribution (1. / (1. + pdist2) for Q.
+            Use Normal distribution instead (exp(-pdist2)) if set to False
+        """
         super(TsneL1, self).__init__(verbosity)
         self._max_outer_iter = max_outer_iter
         self._max_inner_iter = max_inner_iter
@@ -62,9 +47,42 @@ class TsneL1(_BaseSelector):
         self.w = w
         self._lasso = lasso
         self._eps = eps
+        self._use_beta_in_Q = use_beta_in_Q
+        self._perplexity = perplexity
+        self._torch_precision = torch_precision
+        self._torch_cdist_compute_mode = torch_cdist_compute_mode
+        self._t_distr = t_distr
 
-    def fit(self, X):
-        return self._fit(X)
+    def fit(self, X, batches=None, use_beta_in_Q=False):
+        """
+        Select markers from one dataset to keep the cell-cell similarities in the same dataset
+        :param X: data matrix (cells (rows) x genes/proteins (columns))
+        :param batches: (optional) batch labels
+        :param use_beta_in_Q:
+        :return:
+        """
+        if batches is None:
+            return self._fit(X)
+        else:
+            tictoc = TicToc()
+            Xs, Ps, betas = self._resolve_batches(X, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
+            return self._fit_core(Xs, Ps, betas, _StratifiedRegTsneModel, tictoc)
+
+    def fit2(self, X_original, X_mock, use_beta_in_Q=False):
+        """
+        Select markers from one dataset to keep the cell-cell similarities in another dataset
+        :param X_original: get target similarities from this dataset
+        :param X_mock: choose markers from this dataset
+        :param use_beta_in_Q:
+        :return:
+        """
+        tictoc = TicToc()
+        if self._n_pcs is None:
+            P, beta = self.resolve_P_beta(X_original, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+        else:
+            pcs = PCA(self._n_pcs).fit_transform(X_original)
+            P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+        return self._fit_core(X_mock, P, beta, _RegTsneModel, tictoc)
 
     def get_mask(self):
         return self.w > self._eps
@@ -79,10 +97,10 @@ class TsneL1(_BaseSelector):
         return self.fit(X).transform(X)
 
     @staticmethod
-    def resolve_P_beta(X, P, beta, tictoc, print_callbacks):
+    def resolve_P_beta(X, P, beta, perplexity, tictoc, print_callbacks):
         if P is None and beta is None:
             print_callbacks[0]("Calculating distance matrix and scaling factors...")
-            P, beta = TsneL1.x2p(X, print_callback=print_callbacks[1])
+            P, beta = TsneL1.x2p(X, perplexity=perplexity, print_callback=print_callbacks[1])
             print_callbacks[0]("Done.", tictoc.toc())
         elif P is None and beta is not None:
             print_callbacks[0]("Calculating distance matrix...")
@@ -92,7 +110,7 @@ class TsneL1(_BaseSelector):
         return P, beta
 
     @classmethod
-    def tune(cls, X, target_n_features, w=None, n_pcs=None,
+    def tune(cls, X, target_n_features, w=None, n_pcs=None, perplexity=30.,
              min_lasso=1e-8, max_lasso=1e-2,
              P=None, beta=None, torlerance=0, smallest_log10_fold_change=0.1, max_iter=100,
              max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100, eps=1e-12, verbosity=2):
@@ -129,10 +147,10 @@ class TsneL1(_BaseSelector):
         min_log_lasso = np.log10(min_lasso)
 
         if n_pcs is None:
-            P, beta = cls.resolve_P_beta(X, P, beta, tictoc, verbose_print.prints)
+            P, beta = cls.resolve_P_beta(X, P, beta, perplexity, tictoc, verbose_print.prints)
         else:
             pcs = PCA(n_pcs).fit_transform(X)
-            P, beta = cls.resolve_P_beta(pcs, None, None, tictoc, verbose_print.prints)
+            P, beta = cls.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints)
 
         sup = n_features
         inf = 0
@@ -171,32 +189,67 @@ class TsneL1(_BaseSelector):
         return model
 
     def _fit(self, X, P=None, beta=None):
-        """
-
-        :param X:
-        :param w:
-        :return:
-        """
-
         tictoc = TicToc()
         if self._n_pcs is None:
-            P, beta = self.resolve_P_beta(X, P, beta, tictoc, self.verbose_print.prints)
+            P, beta = self.resolve_P_beta(X, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
         else:
             pcs = PCA(self._n_pcs).fit_transform(X)
-            P, beta = self.resolve_P_beta(pcs, None, None, tictoc, self.verbose_print.prints)
+            P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
 
         self.verbose_print(0, "Optimizing...")
-        model = _RegTsneModel(P, X, self.w, beta)
+        return self._fit_core(X, P, beta, _RegTsneModel, tictoc)
+
+    @staticmethod
+    def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print):
+        batches = np.array(batches)
+        batch_names = np.unique(batches)
+        Xs = []
+        Ps = []
+        betas = []
+        for batch in batch_names:
+            batch_mask = (batches == batch)
+            verbose_print(0, "Batch", batch, "with", sum(batch_mask), "instances.")
+
+            Xs.append(X[batch_mask, :])
+            if n_pcs is None:
+                if beta is not None:
+                    new_beta = beta[batches == batch]
+                else:
+                    new_beta = None
+                P, new_beta = TsneL1.resolve_P_beta(Xs[-1], None, new_beta, perplexity, tictoc, verbose_print.prints)
+            else:
+                pcs = PCA(n_pcs).fit_transform(Xs[-1])
+                P, new_beta = TsneL1.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints)
+            Ps.append(P)
+            betas.append(new_beta)
+        return Xs, Ps, betas
+
+    def _fit_core(self, X, P, beta, model_class : Type[_ABCTsneModel], tictoc):
+
+        self.verbose_print(0, "Optimizing...")
+        if self._use_beta_in_Q:
+            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode, self._t_distr)
+        else:
+            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode, self._t_distr)
         optimizer = OWLQN0(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
                            max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
-
+        self.model = model
         for t in range(self._max_outer_iter):
             def closure():
+                # print(model.W)
+                # print((np.abs(model.W.detach().numpy()) > self._eps).sum())
                 if torch.is_grad_enabled():
                     optimizer.zero_grad()
                 loss = model.forward()
+                # print(loss)
+                # print(model.Q)
                 if loss.requires_grad:
                     loss.backward()
+                    # print(model.Q.grad)
+                    # print((np.isnan(model.Q.grad.detach().numpy())).sum())
+                    # print(model.W.grad)
+                    # print((np.isnan(model.W.grad.detach().numpy())).sum())
+
                 return loss
 
             loss = optimizer.step(closure)
