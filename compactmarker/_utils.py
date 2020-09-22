@@ -16,9 +16,9 @@ class TicToc:
 
 
 class VerbosePrint:
-    def __init__(self, verbosity, n_levels=3):
+    def __init__(self, verbosity):
         self._verbosity = verbosity
-        self.prints = [self._make_print(i) for i in range(n_levels)]
+        self.prints = [self.print0, self.print1, self.print2, self.print3]
 
     def __call__(self, priority, *args, **kwargs):
         """
@@ -31,10 +31,14 @@ class VerbosePrint:
         if priority < self._verbosity:
             print(*args, **kwargs)
 
-    def _make_print(self, priority):
-        """
-        A function to print based on Verbosity
-        :param priority: print the message only if the priority is smaller than verbosity
-        :return: None
-        """
-        return lambda *args, **kwargs: self(priority, *args, **kwargs)
+    def print0(self, *args, **kwargs):
+        self(0, *args, **kwargs)
+
+    def print1(self, *args, **kwargs):
+        self(1, *args, **kwargs)
+
+    def print2(self, *args, **kwargs):
+        self(2, *args, **kwargs)
+
+    def print3(self, *args, **kwargs):
+        self(3, *args, **kwargs)
