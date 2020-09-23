@@ -57,9 +57,9 @@ Incidentally, this approach also reduces the memory requirement. If a dataset wi
 #### All model parameters ####
 ```python
 compactmarker.TsneL1(w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
-                 max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
-                 eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True):
+                     max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
+                     eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
+                     t_distr=True):
 ```
 
 - `n_pcs`: If you want to use PCs to calculate the pairwise distances, specify the number of PCs. If you want to use the expression directly, set it to `None`. Default: `None`.
@@ -68,9 +68,10 @@ compactmarker.TsneL1(w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in
 
 #### Tuning ####
 ```python
-compactmarker.TsneL1.tune(cls, target_n_features, X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
-             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
-             **kwargs)
+compactmarker.TsneL1.tune(cls, target_n_features, 
+                          X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
+                          min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
+                          **kwargs)
 ```
 
 All other parameters of ```compactmarker.TsneL1``` (except for lasso, which is to be tuned) can also be specified.
