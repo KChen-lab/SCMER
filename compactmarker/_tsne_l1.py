@@ -14,7 +14,7 @@ from ._torch_models import _RegTsneModel, _StratifiedRegTsneModel
 
 
 class TsneL1(_ABCSelector):
-    def __init__(self, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=True,
+    def __init__(self, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
                  max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
                  eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
                  t_distr=True):
@@ -53,12 +53,11 @@ class TsneL1(_ABCSelector):
         self._torch_cdist_compute_mode = torch_cdist_compute_mode
         self._t_distr = t_distr
 
-    def fit(self, X, batches=None, use_beta_in_Q=False):
+    def fit(self, X, batches=None):
         """
         Select markers from one dataset to keep the cell-cell similarities in the same dataset
         :param X: data matrix (cells (rows) x genes/proteins (columns))
         :param batches: (optional) batch labels
-        :param use_beta_in_Q:
         :return:
         """
         if batches is None:
@@ -68,21 +67,22 @@ class TsneL1(_ABCSelector):
             Xs, Ps, betas = self._resolve_batches(X, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
             return self._fit_core(Xs, Ps, betas, _StratifiedRegTsneModel, tictoc)
 
-    def fit2(self, X_original, X_mock, use_beta_in_Q=False):
+    def fit2(self, X_student, X_teacher):
         """
         Select markers from one dataset to keep the cell-cell similarities in another dataset
-        :param X_original: get target similarities from this dataset
-        :param X_mock: choose markers from this dataset
-        :param use_beta_in_Q:
+        :param X_teacher: get target similarities from this dataset
+        :param X_student: choose markers from this dataset
         :return:
         """
         tictoc = TicToc()
+        self.verbose_print(0, "Processing original cell-cell similarities...")
         if self._n_pcs is None:
-            P, beta = self.resolve_P_beta(X_original, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+            P, beta = self.resolve_P_beta(X_teacher, None, None, self._perplexity, tictoc, self.verbose_print.prints)
         else:
-            pcs = PCA(self._n_pcs).fit_transform(X_original)
+            pcs = PCA(self._n_pcs).fit_transform(X_teacher)
             P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
-        return self._fit_core(X_mock, P, beta, _RegTsneModel, tictoc)
+        self.verbose_print(0, "Use new data to approximate the similarities...")
+        return self._fit_core(X_student, P, beta, _RegTsneModel, tictoc)
 
     def get_mask(self):
         return self.w > self._eps
@@ -110,29 +110,22 @@ class TsneL1(_ABCSelector):
         return P, beta
 
     @classmethod
-    def tune(cls, X, target_n_features, w=None, n_pcs=None, perplexity=30.,
-             min_lasso=1e-8, max_lasso=1e-2,
-             P=None, beta=None, torlerance=0, smallest_log10_fold_change=0.1, max_iter=100,
-             max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100, eps=1e-12, verbosity=2):
+    def tune(cls, target_n_features, X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
+             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
+             **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
         :param X: Expression matrix, cells x features
         :param target_n_features: number of features
-        :param w:
-        :param min_lasso:
-        :param max_lasso:
-        :param P:
-        :param beta:
-        :param torlerance:
-        :param smallest_log10_fold_change:
-        :param max_iter:
-        :param max_outer_iter:
-        :param max_inner_iter:
-        :param owlqn_history_size:
-        :param eps:
-        :param verbosity:
+        :param kwargs: all other parameters for a TsneL1 model
         :return: model
         """
+        if "lasso" in kwargs:
+            raise ValueError("Parameter lasso should be substituted by max_lasso and min_lasso to set a range.")
+        if "verbosity" in kwargs:
+            verbosity = kwargs['verbosity']
+        else:
+            verbosity = 3
         verbose_print = VerbosePrint(verbosity)
         tictoc = TicToc()
 
@@ -146,23 +139,32 @@ class TsneL1(_ABCSelector):
         max_log_lasso = np.log10(max_lasso)
         min_log_lasso = np.log10(min_lasso)
 
-        if n_pcs is None:
-            P, beta = cls.resolve_P_beta(X, P, beta, perplexity, tictoc, verbose_print.prints)
+        if X_teacher is None: # if there is no other assay to mimic, just mimic itself
+            X_teacher = X
+
+        if batches is None:
+            model_class = _RegTsneModel
+            if n_pcs is None:
+                P, beta = cls.resolve_P_beta(X_teacher, P, beta, perplexity, tictoc, verbose_print.prints)
+            else:
+                pcs = PCA(n_pcs).fit_transform(X_teacher)
+                P, beta = cls.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints)
         else:
-            pcs = PCA(n_pcs).fit_transform(X)
-            P, beta = cls.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints)
+            model_class = _StratifiedRegTsneModel
+            X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print)
 
         sup = n_features
         inf = 0
 
+        model = None
         for it in range(max_iter):
             log_lasso = max_log_lasso / 2 + min_log_lasso / 2
             verbose_print(0, "Iteration", it, "with lasso =", 10 ** log_lasso,
                           "in [", 10 ** min_log_lasso, ",", 10 ** max_log_lasso, "]...", end=" ")
-            model = cls(w, 10 ** log_lasso, max_outer_iter, max_inner_iter, owlqn_history_size, eps, verbosity - 1)
-            n = model._fit(X, P, beta).get_mask().sum()
+            model = cls(w, 10 ** log_lasso, n_pcs, perplexity, **kwargs)
+            n = model._fit_core(X, P, beta, model_class, tictoc).get_mask().sum()
             verbose_print(0, "Done. Number of features:", n, ".", tictoc.toc())
-            if np.abs(n - target_n_features) <= torlerance:  # Good number of features, return
+            if np.abs(n - target_n_features) <= tolerance:  # Good number of features, return
                 break
 
             if it > 0 and np.abs(log_lasso - prev_log_lasso) < smallest_log10_fold_change:
@@ -175,13 +177,17 @@ class TsneL1(_ABCSelector):
                 if n <= sup:
                     sup = n
                 else:
-                    warnings.warn("Monotonicity is violated. Value larger than current supremum.")
+                    warnings.warn("Monotonicity is violated. Value larger than current supremum. "
+                                  "Binary search may fail. "
+                                  "Consider use more max_outer_iter (default: 5) and max_inner_iter (default: 20).")
                 min_log_lasso = log_lasso
             elif n < target_n_features:  # Too few features, need less l1 regularization
                 if n >= inf:
                     inf = n
                 else:
-                    warnings.warn("Monotonicity is violated. Value lower than current infimum.")
+                    warnings.warn("Monotonicity is violated. Value lower than current infimum. "
+                                  "Binary search may fail. "
+                                  "Consider use more max_outer_iter (default: 5) and max_inner_iter (default: 20).")
                 max_log_lasso = log_lasso
         else:  # max_iter reached
             warnings.warn("max_iter before reached achieving target number of features.")
@@ -224,7 +230,7 @@ class TsneL1(_ABCSelector):
             betas.append(new_beta)
         return Xs, Ps, betas
 
-    def _fit_core(self, X, P, beta, model_class : Type[_ABCTsneModel], tictoc):
+    def _fit_core(self, X, P, beta, model_class: Type[_ABCTsneModel], tictoc):
 
         self.verbose_print(0, "Optimizing...")
         if self._use_beta_in_Q:
