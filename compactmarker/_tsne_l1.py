@@ -4,6 +4,7 @@ from ._interfaces import _ABCSelector, _ABCTsneModel
 from ._owlqn import OWLQN0
 
 import warnings
+import multiprocessing
 import numpy as np
 
 import scipy.stats
@@ -14,10 +15,10 @@ from ._torch_models import _RegTsneModel, _StratifiedRegTsneModel
 
 
 class TsneL1(_ABCSelector):
-    def __init__(self, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
+    def __init__(self, *, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
                  max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
                  eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True, n_threads=6):
+                 t_distr=True, n_threads=1):
         """
 
         :param w:
@@ -53,6 +54,7 @@ class TsneL1(_ABCSelector):
         self._torch_precision = torch_precision
         self._torch_cdist_compute_mode = torch_cdist_compute_mode
         self._t_distr = t_distr
+        self._n_threads = n_threads
 
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None):
         """
@@ -70,14 +72,14 @@ class TsneL1(_ABCSelector):
         if batches is None:
             model_class = _RegTsneModel
             if self._n_pcs is None:
-                P, beta = self.resolve_P_beta(X_teacher, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
+                P, beta = self.resolve_P_beta(X_teacher, P, beta, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
             else:
                 pcs = PCA(self._n_pcs).fit_transform(X_teacher)
-                P, beta = self.resolve_P_beta(pcs, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
+                P, beta = self.resolve_P_beta(pcs, P, beta, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
         else:
             model_class = _StratifiedRegTsneModel
             if P is not None:
-                X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
+                X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print, self._n_threads)
 
         return self._fit_core(X, P, beta, model_class, tictoc)
 
@@ -98,10 +100,10 @@ class TsneL1(_ABCSelector):
         tictoc = TicToc()
         self.verbose_print(0, "Processing original cell-cell similarities...")
         if self._n_pcs is None:
-            P, beta = self.resolve_P_beta(X_teacher, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+            P, beta = self.resolve_P_beta(X_teacher, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
         else:
             pcs = PCA(self._n_pcs).fit_transform(X_teacher)
-            P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+            P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
         self.verbose_print(0, "Use new data to approximate the similarities...")
         return self._fit_core(X_student, P, beta, _RegTsneModel, tictoc)
 
@@ -118,10 +120,10 @@ class TsneL1(_ABCSelector):
         return self.fit(X).transform(X)
 
     @staticmethod
-    def resolve_P_beta(X, P, beta, perplexity, tictoc, print_callbacks):
+    def resolve_P_beta(X, P, beta, perplexity, tictoc, print_callbacks, n_threads):
         if P is None and beta is None:
             print_callbacks[0]("Calculating distance matrix and scaling factors...")
-            P, beta = TsneL1.x2p(X, perplexity=perplexity, print_callback=print_callbacks[1])
+            P, beta = TsneL1.x2p(X, perplexity=perplexity, print_callback=print_callbacks[1], n_threads=n_threads)
             print_callbacks[0]("Done.", tictoc.toc())
         elif P is None and beta is not None:
             print_callbacks[0]("Calculating distance matrix...")
@@ -132,7 +134,7 @@ class TsneL1(_ABCSelector):
 
     @classmethod
     def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
-             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False,
+             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False, n_threads=6,
              **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
@@ -168,14 +170,14 @@ class TsneL1(_ABCSelector):
         if batches is None:
             model_class = _RegTsneModel
             if n_pcs is None:
-                P, beta = cls.resolve_P_beta(X_teacher, P, beta, perplexity, tictoc, verbose_print.prints)
+                P, beta = cls.resolve_P_beta(X_teacher, P, beta, perplexity, tictoc, verbose_print.prints, n_threads)
             else:
                 pcs = PCA(n_pcs).fit_transform(X_teacher)
-                P, beta = cls.resolve_P_beta(pcs, P, beta, perplexity, tictoc, verbose_print.prints)
+                P, beta = cls.resolve_P_beta(pcs, P, beta, perplexity, tictoc, verbose_print.prints, n_threads)
         else:
             model_class = _StratifiedRegTsneModel
             if P is None:
-                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print)
+                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print, n_threads)
 
         sup = n_features
         inf = 0
@@ -236,7 +238,7 @@ class TsneL1(_ABCSelector):
     #    return self._fit_core(X, P, beta, _RegTsneModel, tictoc)
 
     @staticmethod
-    def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print):
+    def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print, n_threads):
         batches = np.array(batches)
         batch_names = np.unique(batches)
         Xs = []
@@ -252,10 +254,10 @@ class TsneL1(_ABCSelector):
                     new_beta = beta[batches == batch]
                 else:
                     new_beta = None
-                P, new_beta = TsneL1.resolve_P_beta(Xs[-1], None, new_beta, perplexity, tictoc, verbose_print.prints)
+                P, new_beta = TsneL1.resolve_P_beta(Xs[-1], None, new_beta, perplexity, tictoc, verbose_print.prints, n_threads)
             else:
                 pcs = PCA(n_pcs).fit_transform(Xs[-1])
-                P, new_beta = TsneL1.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints)
+                P, new_beta = TsneL1.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints, n_threads)
             Ps.append(P)
             betas.append(new_beta)
         return Xs, Ps, betas
@@ -317,76 +319,13 @@ class TsneL1(_ABCSelector):
         return H, P
 
     @staticmethod
-    def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, *, workers=6):
+    def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, *, n_threads):
         """
             Performs a binary search to get P-values in such a way that each
             conditional Gaussian has the same perplexity.
         """
-        if workers > 1:
-            return TsneL1.x2p_parallel(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, workers=6)
-
-        # Initialize some variables
-        print_callback("Computing pairwise distances...")
-        (n, d) = X.shape
-        sum_X = np.sum(np.square(X), 1)
-        D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
-        P = np.zeros((n, n))
-        beta = np.ones((n, 1))
-        logU = np.log(perplexity)
-
-        # Loop over all datapoints
-        for i in range(n):
-
-            # Print progress
-            if i % 500 == 0:
-                print_callback("Computing P-values for point %d of %d..." % (i, n))
-
-            # Compute the Gaussian kernel and entropy for the current precision
-            betamin = -np.inf
-            betamax = np.inf
-            Di = D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))]
-            (H, thisP) = TsneL1.Hbeta(Di, beta[i])
-
-            # if i % 500 == 0:
-            # print(H, thisP)
-
-            # Evaluate whether the perplexity is within tolerance
-            Hdiff = H - logU
-            tries = 0
-
-            while (not np.abs(Hdiff) < tol) and tries < 50:
-                # If not, increase or decrease precision
-                if Hdiff > 0:
-                    betamin = beta[i].copy()
-                    if betamax == np.inf or betamax == -np.inf:
-                        beta[i] = beta[i] * 2.
-                    else:
-                        beta[i] = (beta[i] + betamax) / 2.
-                else:
-                    betamax = beta[i].copy()
-                    if betamin == np.inf or betamin == -np.inf:
-                        beta[i] = beta[i] / 2.
-                    else:
-                        beta[i] = (beta[i] + betamin) / 2.
-
-                # Recompute the values
-                (H, thisP) = TsneL1.Hbeta(Di, beta[i])
-                Hdiff = H - logU
-                tries += 1
-
-            # Set the final row of P
-            P[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))] = thisP
-
-        # Return final P-matrix
-        print_callback("Mean value of sigma: %f" % np.mean(np.sqrt(1 / beta)))
-        return P, beta
-
-    @staticmethod
-    def x2p_parallel(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, *, workers=6):
-        """
-            Performs a binary search to get P-values in such a way that each
-            conditional Gaussian has the same perplexity.
-        """
+        if n_threads > 1:
+            return TsneL1.x2p_parallel(X, tol, perplexity, print_callback, n_threads)
 
         # Initialize some variables
         print_callback("Computing pairwise distances...")
@@ -454,3 +393,72 @@ class TsneL1(_ABCSelector):
             (H, P[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))]) = TsneL1.Hbeta(
                 D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))], beta[i])
         return P
+
+    @staticmethod
+    def x2p_process(Di, logU, tol):
+        beta = 1.
+        betamin = -np.inf
+        betamax = np.inf
+        (H, thisP) = TsneL1.Hbeta(Di, beta)
+
+        Hdiff = H - logU
+        tries = 0
+
+        while (not np.abs(Hdiff) < tol) and tries < 50:
+            # If not, increase or decrease precision
+            if Hdiff > 0:
+                betamin = beta
+                if betamax == np.inf or betamax == -np.inf:
+                    beta = beta * 2.
+                else:
+                    beta = (beta + betamax) / 2.
+            else:
+                betamax = beta
+                if betamin == np.inf or betamin == -np.inf:
+                    beta = beta / 2.
+                else:
+                    beta = (beta + betamin) / 2.
+
+            # Recompute the values
+            (H, thisP) = TsneL1.Hbeta(Di, beta)
+            Hdiff = H - logU
+            tries += 1
+        return thisP, beta
+        # Set the final row of P
+
+
+
+
+    @staticmethod
+    def x2p_parallel(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, n_threads=6):
+        """
+            Performs a binary search to get P-values in such a way that each
+            conditional Gaussian has the same perplexity.
+        """
+
+        # Initialize some variables
+        print_callback("Computing pairwise distances...")
+        (n, d) = X.shape
+        sum_X = np.sum(np.square(X), 1)
+        D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
+
+        logU = np.log(perplexity)
+
+        # Loop over all datapoints
+        # for i in range(n):
+        # Compute the Gaussian kernel and entropy for the current precision
+
+        print_callback("Using", n_threads, "threads...")
+        parameters = [(D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))], logU, tol) for i in range(n)]
+        with multiprocessing.Pool(n_threads) as pool:
+            results = pool.starmap(TsneL1.x2p_process, parameters)
+
+        beta = np.ones((n, 1))
+        P = np.zeros((n, n))
+        for i in range(n):
+            P[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))] = results[i][0]
+            beta[i] = results[i][1]
+
+        # Return final P-matrix
+        print_callback("Mean value of sigma: %f" % np.mean(np.sqrt(1 / beta)))
+        return P, beta
