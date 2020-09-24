@@ -17,7 +17,7 @@ class TsneL1(_ABCSelector):
     def __init__(self, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
                  max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
                  eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True):
+                 t_distr=True, n_threads=6):
         """
 
         :param w:
@@ -38,6 +38,7 @@ class TsneL1(_ABCSelector):
             outside of pytorch, e.g., matrix P. Only matrix Q is affect.
         :param t_distr: By default, use t-distribution (1. / (1. + pdist2) for Q.
             Use Normal distribution instead (exp(-pdist2)) if set to False
+        :param n_threads: number of threads (currently only for calculating P and beta)
         """
         super(TsneL1, self).__init__(verbosity)
         self._max_outer_iter = max_outer_iter
@@ -53,19 +54,39 @@ class TsneL1(_ABCSelector):
         self._torch_cdist_compute_mode = torch_cdist_compute_mode
         self._t_distr = t_distr
 
-    def fit(self, X, batches=None):
+    def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None):
         """
         Select markers from one dataset to keep the cell-cell similarities in the same dataset
         :param X: data matrix (cells (rows) x genes/proteins (columns))
+        :param X_teacher: get target similarities from this dataset
         :param batches: (optional) batch labels
         :return:
         """
+        tictoc = TicToc()
+
+        if X_teacher is None: # if there is no other assay to mimic, just mimic itself
+            X_teacher = X
+
         if batches is None:
-            return self._fit(X)
+            model_class = _RegTsneModel
+            if self._n_pcs is None:
+                P, beta = self.resolve_P_beta(X_teacher, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
+            else:
+                pcs = PCA(self._n_pcs).fit_transform(X_teacher)
+                P, beta = self.resolve_P_beta(pcs, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
         else:
-            tictoc = TicToc()
-            Xs, Ps, betas = self._resolve_batches(X, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
-            return self._fit_core(Xs, Ps, betas, _StratifiedRegTsneModel, tictoc)
+            model_class = _StratifiedRegTsneModel
+            if P is not None:
+                X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
+
+        return self._fit_core(X, P, beta, model_class, tictoc)
+
+        # if batches is None:
+        #     return self._fit(X)
+        # else:
+        #     tictoc = TicToc()
+        #     Xs, Ps, betas = self._resolve_batches(X, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
+        #     return self._fit_core(Xs, Ps, betas, _StratifiedRegTsneModel, tictoc)
 
     def fit2(self, X_student, X_teacher):
         """
@@ -110,15 +131,17 @@ class TsneL1(_ABCSelector):
         return P, beta
 
     @classmethod
-    def tune(cls, target_n_features, X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
-             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
+    def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
+             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False,
              **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
         :param X: Expression matrix, cells x features
         :param target_n_features: number of features
         :param kwargs: all other parameters for a TsneL1 model
-        :return: model
+        :return: if return_P_beta is True and there are batches, (model, X, P, beta);
+                 if return_P_beta is True and there is no batches, (model, P, beta);
+                 otherwise, only model.
         """
         if "lasso" in kwargs:
             raise ValueError("Parameter lasso should be substituted by max_lasso and min_lasso to set a range.")
@@ -148,10 +171,11 @@ class TsneL1(_ABCSelector):
                 P, beta = cls.resolve_P_beta(X_teacher, P, beta, perplexity, tictoc, verbose_print.prints)
             else:
                 pcs = PCA(n_pcs).fit_transform(X_teacher)
-                P, beta = cls.resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints)
+                P, beta = cls.resolve_P_beta(pcs, P, beta, perplexity, tictoc, verbose_print.prints)
         else:
             model_class = _StratifiedRegTsneModel
-            X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print)
+            if P is None:
+                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print)
 
         sup = n_features
         inf = 0
@@ -192,18 +216,24 @@ class TsneL1(_ABCSelector):
         else:  # max_iter reached
             warnings.warn("max_iter before reached achieving target number of features.")
 
-        return model
-
-    def _fit(self, X, P=None, beta=None):
-        tictoc = TicToc()
-        if self._n_pcs is None:
-            P, beta = self.resolve_P_beta(X, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
+        if return_P_beta:
+            if batches is None:
+                return model, P, beta
+            else:
+                return model, X, P, beta
         else:
-            pcs = PCA(self._n_pcs).fit_transform(X)
-            P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+            return model
 
-        self.verbose_print(0, "Optimizing...")
-        return self._fit_core(X, P, beta, _RegTsneModel, tictoc)
+    # def _fit(self, X, P=None, beta=None):
+    #    tictoc = TicToc()
+    #    if self._n_pcs is None:
+    #        P, beta = self.resolve_P_beta(X, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
+    #    else:
+    #        pcs = PCA(self._n_pcs).fit_transform(X)
+    #        P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
+    #
+    #    self.verbose_print(0, "Optimizing...")
+    #    return self._fit_core(X, P, beta, _RegTsneModel, tictoc)
 
     @staticmethod
     def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print):
@@ -287,7 +317,72 @@ class TsneL1(_ABCSelector):
         return H, P
 
     @staticmethod
-    def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print):
+    def x2p(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, *, workers=6):
+        """
+            Performs a binary search to get P-values in such a way that each
+            conditional Gaussian has the same perplexity.
+        """
+        if workers > 1:
+            return TsneL1.x2p_parallel(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, workers=6)
+
+        # Initialize some variables
+        print_callback("Computing pairwise distances...")
+        (n, d) = X.shape
+        sum_X = np.sum(np.square(X), 1)
+        D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
+        P = np.zeros((n, n))
+        beta = np.ones((n, 1))
+        logU = np.log(perplexity)
+
+        # Loop over all datapoints
+        for i in range(n):
+
+            # Print progress
+            if i % 500 == 0:
+                print_callback("Computing P-values for point %d of %d..." % (i, n))
+
+            # Compute the Gaussian kernel and entropy for the current precision
+            betamin = -np.inf
+            betamax = np.inf
+            Di = D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))]
+            (H, thisP) = TsneL1.Hbeta(Di, beta[i])
+
+            # if i % 500 == 0:
+            # print(H, thisP)
+
+            # Evaluate whether the perplexity is within tolerance
+            Hdiff = H - logU
+            tries = 0
+
+            while (not np.abs(Hdiff) < tol) and tries < 50:
+                # If not, increase or decrease precision
+                if Hdiff > 0:
+                    betamin = beta[i].copy()
+                    if betamax == np.inf or betamax == -np.inf:
+                        beta[i] = beta[i] * 2.
+                    else:
+                        beta[i] = (beta[i] + betamax) / 2.
+                else:
+                    betamax = beta[i].copy()
+                    if betamin == np.inf or betamin == -np.inf:
+                        beta[i] = beta[i] / 2.
+                    else:
+                        beta[i] = (beta[i] + betamin) / 2.
+
+                # Recompute the values
+                (H, thisP) = TsneL1.Hbeta(Di, beta[i])
+                Hdiff = H - logU
+                tries += 1
+
+            # Set the final row of P
+            P[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))] = thisP
+
+        # Return final P-matrix
+        print_callback("Mean value of sigma: %f" % np.mean(np.sqrt(1 / beta)))
+        return P, beta
+
+    @staticmethod
+    def x2p_parallel(X=np.array([]), tol=1e-5, perplexity=30.0, print_callback=print, *, workers=6):
         """
             Performs a binary search to get P-values in such a way that each
             conditional Gaussian has the same perplexity.
