@@ -14,17 +14,17 @@ Assuming that you have a dataset in the form of a `scanpy`/`AnnData` object `ada
 
 First, import the module:
 ```python
-import compactmarker
+from compactmarker import TsneL1
 ```
 
 Then, if you want to train the model with a given strength of l1-regularization:
 ```python
-model = compactmarker.TsneL1(lasso=1e-3).fit(adata.X)
+model = TsneL1(lasso=1e-3).fit(adata.X)
 ```
 
 Or, if you want to keep a specific number of features:
 ```python
-model_20 = compactmarker.TsneL1.tune(target_n_features=20, X=adata.X)
+model_20 = TsneL1.tune(target_n_features=20, X=adata.X)
 ```
 It will perform a binary search on strength of l1-regularization to find the one 
 giving desired number of features.
@@ -56,22 +56,23 @@ Incidentally, this approach also reduces the memory requirement. If a dataset wi
 
 #### All model parameters ####
 ```python
-compactmarker.TsneL1(w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
-                     max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
-                     eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-                     t_distr=True):
+TsneL1(w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
+       max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
+       eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
+        t_distr=True, n_threads=1):
 ```
 
 - `n_pcs`: If you want to use PCs to calculate the pairwise distances, specify the number of PCs. If you want to use the expression directly, set it to `None`. Default: `None`.
 - `w`: Initial value of w. Leaving it as `None` to randomly generate one. Default: `None`.
 - `owlqn_history_size`: History size for OWLQN optimization. Set to a smaller value if you encounter an insufficient memory problem. Default: `100`.
+- `n_threads`: Number of threads used in calculating pairwise similarity. A linear speed-up is expected so it is recommended to use all CPUs.
 
 #### Tuning ####
 ```python
-compactmarker.TsneL1.tune(cls, target_n_features, 
-                          X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
-                          min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
-                          **kwargs)
+TsneL1.tune(cls, target_n_features, 
+            X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
+            min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
+            **kwargs)
 ```
 
 All other parameters of ```compactmarker.TsneL1``` (except for lasso, which is to be tuned) can also be specified.
