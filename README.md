@@ -65,14 +65,18 @@ Incidentally, this approach also reduces the memory requirement. If a dataset wi
 If there are markers you think that should be considered with priority, there are two ways to indicate/enforce it.
 1. Use a vector as the parameter `lasso`, and set the corresponding entries to 0. In this way, you remove l1-regularization for that gene.
 ```python
-model = TsneL1(lasso = [0., 0., 1e-5, 1e-5, 1e-5, ...])
+model = TsneL1(lasso=[0., 0., 1e-5, 1e-5, 1e-5, ...])
 model.fit(rna_adata.X)
 ```
 2. Set `must_keep` to nonzero values
 ```python
-model.fit(rna_adata.X, must_keep = [1., 1., 0., 0., 0., ...])
+model.fit(rna_adata.X, must_keep=[1., 1., 0., 0., 0., ...])
 ```
-
+If you wish to use both, the lasso parameter should only contain entires whose `must_keep` status is zero. For example:
+```python
+model = TsneL1(lasso=lasso[must_keep == 0])
+model.fit(rna_adata.X, must_keep=must_keep)
+```
 #### All model parameters ####
 
 - `n_pcs`: If you want to use PCs to calculate the pairwise distances, specify the number of PCs. If you want to use the expression directly, set it to `None`. Default: `None`.
