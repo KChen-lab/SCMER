@@ -1,7 +1,7 @@
 import torch
 from typing import Type
 from ._interfaces import _ABCSelector, _ABCTsneModel
-from ._owlqn import OWLQN0
+from ._owlqn import OWLQN
 
 import warnings
 import multiprocessing
@@ -15,7 +15,7 @@ from ._torch_models import _RegTsneModel, _StratifiedRegTsneModel
 
 
 class TsneL1(_ABCSelector):
-    def __init__(self, *, w=None, lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
+    def __init__(self, *, w='ones', lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
                  max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
                  eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
                  t_distr=True, n_threads=1):
@@ -56,7 +56,7 @@ class TsneL1(_ABCSelector):
         self._t_distr = t_distr
         self._n_threads = n_threads
 
-    def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None):
+    def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
         """
         Select markers from one dataset to keep the cell-cell similarities in the same dataset
         :param X: data matrix (cells (rows) x genes/proteins (columns))
@@ -81,7 +81,7 @@ class TsneL1(_ABCSelector):
             if P is not None:
                 X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print, self._n_threads)
 
-        return self._fit_core(X, P, beta, model_class, tictoc)
+        return self._fit_core(X, P, beta, must_keep, model_class, tictoc)
 
         # if batches is None:
         #     return self._fit(X)
@@ -90,22 +90,22 @@ class TsneL1(_ABCSelector):
         #     Xs, Ps, betas = self._resolve_batches(X, None, batches, self._n_pcs, self._perplexity, tictoc, self.verbose_print)
         #     return self._fit_core(Xs, Ps, betas, _StratifiedRegTsneModel, tictoc)
 
-    def fit2(self, X_student, X_teacher):
-        """
-        Select markers from one dataset to keep the cell-cell similarities in another dataset
-        :param X_teacher: get target similarities from this dataset
-        :param X_student: choose markers from this dataset
-        :return:
-        """
-        tictoc = TicToc()
-        self.verbose_print(0, "Processing original cell-cell similarities...")
-        if self._n_pcs is None:
-            P, beta = self.resolve_P_beta(X_teacher, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
-        else:
-            pcs = PCA(self._n_pcs).fit_transform(X_teacher)
-            P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
-        self.verbose_print(0, "Use new data to approximate the similarities...")
-        return self._fit_core(X_student, P, beta, _RegTsneModel, tictoc)
+    # def fit2(self, X_student, X_teacher):
+    #     """
+    #     Select markers from one dataset to keep the cell-cell similarities in another dataset
+    #     :param X_teacher: get target similarities from this dataset
+    #     :param X_student: choose markers from this dataset
+    #     :return:
+    #     """
+    #     tictoc = TicToc()
+    #     self.verbose_print(0, "Processing original cell-cell similarities...")
+    #     if self._n_pcs is None:
+    #         P, beta = self.resolve_P_beta(X_teacher, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
+    #     else:
+    #         pcs = PCA(self._n_pcs).fit_transform(X_teacher)
+    #         P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
+    #     self.verbose_print(0, "Use new data to approximate the similarities...")
+    #     return self._fit_core(X_student, P, beta, _RegTsneModel, tictoc)
 
     def get_mask(self):
         return self.w > self._eps
@@ -133,7 +133,7 @@ class TsneL1(_ABCSelector):
         return P, beta
 
     @classmethod
-    def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
+    def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None, perplexity=30., n_pcs=None, w='ones',
              min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False, n_threads=6,
              **kwargs):
         """
@@ -177,7 +177,8 @@ class TsneL1(_ABCSelector):
         else:
             model_class = _StratifiedRegTsneModel
             if P is None:
-                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print, n_threads)
+                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print,
+                                                  n_threads)
 
         sup = n_features
         inf = 0
@@ -187,8 +188,8 @@ class TsneL1(_ABCSelector):
             log_lasso = max_log_lasso / 2 + min_log_lasso / 2
             verbose_print(0, "Iteration", it, "with lasso =", 10 ** log_lasso,
                           "in [", 10 ** min_log_lasso, ",", 10 ** max_log_lasso, "]...", end=" ")
-            model = cls(w, 10 ** log_lasso, n_pcs, perplexity, **kwargs)
-            n = model._fit_core(X, P, beta, model_class, tictoc).get_mask().sum()
+            model = cls(w=w, lasso=10 ** log_lasso, n_pcs=n_pcs, perplexity=perplexity, **kwargs)
+            n = model._fit_core(X, P, beta, must_keep, model_class, tictoc).get_mask().sum()
             verbose_print(0, "Done. Number of features:", n, ".", tictoc.toc())
             if np.abs(n - target_n_features) <= tolerance:  # Good number of features, return
                 break
@@ -226,17 +227,6 @@ class TsneL1(_ABCSelector):
         else:
             return model
 
-    # def _fit(self, X, P=None, beta=None):
-    #    tictoc = TicToc()
-    #    if self._n_pcs is None:
-    #        P, beta = self.resolve_P_beta(X, P, beta, self._perplexity, tictoc, self.verbose_print.prints)
-    #    else:
-    #        pcs = PCA(self._n_pcs).fit_transform(X)
-    #        P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints)
-    #
-    #    self.verbose_print(0, "Optimizing...")
-    #    return self._fit_core(X, P, beta, _RegTsneModel, tictoc)
-
     @staticmethod
     def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print, n_threads):
         batches = np.array(batches)
@@ -262,15 +252,17 @@ class TsneL1(_ABCSelector):
             betas.append(new_beta)
         return Xs, Ps, betas
 
-    def _fit_core(self, X, P, beta, model_class: Type[_ABCTsneModel], tictoc):
+    def _fit_core(self, X, P, beta, must_keep, model_class: Type[_ABCTsneModel], tictoc):
 
         self.verbose_print(0, "Optimizing...")
         if self._use_beta_in_Q:
-            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode, self._t_distr)
+            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode,
+                                self._t_distr, must_keep)
         else:
-            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode, self._t_distr)
-        optimizer = OWLQN0(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
-                           max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
+            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode,
+                                self._t_distr, must_keep)
+        optimizer = OWLQN(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
+                          max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
         self.model = model
         for t in range(self._max_outer_iter):
             def closure():
@@ -295,10 +287,10 @@ class TsneL1(_ABCSelector):
                                tictoc.toc())
 
         loss = model.forward()
-        self.verbose_print(1, 'final', 'loss:', loss.item(), "sparsity:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
+        self.verbose_print(1, 'final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
                            tictoc.toc())
 
-        self.w = model.W.detach().numpy().squeeze()
+        self.w = model.get_w()
 
         return self
 

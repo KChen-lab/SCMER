@@ -22,7 +22,7 @@ class _ABCSelector(ABC):
 
 class _ABCTsneModel(ABC):
     @abstractmethod
-    def __init__(self, P, X, w, beta, dtype, cdist_compute_mode, t_distr):
+    def __init__(self, P, X, w, beta, dtype, cdist_compute_mode, t_distr, must_keep):
         pass
 
     @abstractmethod
@@ -31,4 +31,8 @@ class _ABCTsneModel(ABC):
 
     @abstractmethod
     def forward(self):
+        pass
+
+    @abstractmethod
+    def get_w(self):
         pass
