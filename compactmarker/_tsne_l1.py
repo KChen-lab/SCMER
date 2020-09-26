@@ -259,7 +259,7 @@ class TsneL1(_ABCSelector):
             model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode,
                                 self._t_distr, must_keep)
         else:
-            model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode,
+            model = model_class(P, X, self.w, None, self._torch_precision, self._torch_cdist_compute_mode,
                                 self._t_distr, must_keep)
         optimizer = OWLQN(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
                           max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
