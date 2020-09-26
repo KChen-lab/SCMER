@@ -55,9 +55,11 @@ class _BaseTsneModel(nn.Module):
         return X, add_pdist2, n_instances, n_features
 
     def init_w(self, w):
-        if w == 'uniform':
+        if isinstance(w, float) or isinstance(w, int):
+            w = np.zeros([1, self.n_features]) + w
+        elif isinstance(w, str) and w == 'uniform':
             w = np.random.uniform(size=[1, self.n_features])
-        elif w == 'ones':
+        elif isinstance(w, str) and w == 'ones':
             w = np.ones([1, self.n_features])
         else:
             w = np.array(w).reshape([1, self.n_features])
