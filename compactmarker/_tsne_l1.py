@@ -18,7 +18,7 @@ class TsneL1(_ABCSelector):
     def __init__(self, *, w='ones', lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
                  max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
                  eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True, n_threads=1):
+                 t_distr=True, n_threads=1, use_gpu=False):
         """
 
         :param w:
@@ -55,6 +55,7 @@ class TsneL1(_ABCSelector):
         self._torch_cdist_compute_mode = torch_cdist_compute_mode
         self._t_distr = t_distr
         self._n_threads = n_threads
+        self._use_gpu = use_gpu
 
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
         """
@@ -134,7 +135,7 @@ class TsneL1(_ABCSelector):
 
     @classmethod
     def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None, perplexity=30., n_pcs=None, w='ones',
-             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False, n_threads=6,
+             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False, n_threads=6
              **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
@@ -266,9 +267,14 @@ class TsneL1(_ABCSelector):
         else:
             model = model_class(P, X, self.w, None, self._torch_precision, self._torch_cdist_compute_mode,
                                 self._t_distr, must_keep)
+            
+        if self._use_gpu:
+            model.use_gpu()
+            
         optimizer = OWLQN(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
                           max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
-        self.model = model
+        #self.model = model
+
         for t in range(self._max_outer_iter):
             def closure():
                 # print(model.W)
@@ -288,11 +294,11 @@ class TsneL1(_ABCSelector):
                 return loss
 
             loss = optimizer.step(closure)
-            self.verbose_print(1, t, 'loss:', loss.item(), "Nonzero:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
+            self.verbose_print(1, t, 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                                tictoc.toc())
 
         loss = model.forward()
-        self.verbose_print(1, 'final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.W.detach().numpy()) > self._eps).sum(),
+        self.verbose_print(1, 'final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                            tictoc.toc())
 
         self.w = model.get_w()

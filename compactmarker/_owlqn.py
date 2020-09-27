@@ -867,7 +867,8 @@ def OWLQN(params,
           tolerance_change=1e-9,
           history_size=100,
           line_search_fn=None,
-          print_callback=print):
+          print_callback=print,
+          use_gpu=False):
     """
     Dispatching to proper OWLQN class depending on the structure of lasso
     :param params:
@@ -888,6 +889,9 @@ def OWLQN(params,
                       print_callback)
     if isinstance(lasso, list) or isinstance(lasso, np.ndarray):
         mask = (np.ndarray != 0.)
-        return OWLQN0_masked(params, lr, torch.tensor(lasso), mask,
+        lasso = torch.tensor(lasso)
+        if use_gpu:
+            lasso = lasso.cuda()
+        return OWLQN0_masked(params, lr, lasso, mask,
                              max_iter, max_eval, tolerance_grad, tolerance_change, history_size, line_search_fn,
                              print_callback)

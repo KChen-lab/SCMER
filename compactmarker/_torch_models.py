@@ -30,6 +30,8 @@ class _BaseTsneModel(nn.Module):
             self.must_keep = must_keep.squeeze()
         self.cdist_compute_mode = cdist_compute_mode
         self.t_distr = t_distr
+        
+        self.epsilon = torch.tensor(1e-12 / 4, dtype=self.dtype)
 
     @staticmethod
     def preprocess_P(P):
@@ -65,13 +67,21 @@ class _BaseTsneModel(nn.Module):
             w = np.array(w).reshape([1, self.n_features])
         self.W = torch.nn.Parameter(
             torch.tensor(w, dtype=self.dtype, requires_grad=True))
-
+    
+    def get_w0(self):
+        if self.W.is_cuda:
+            w0 = self.W.detach().cpu().numpy().squeeze()
+        else:
+            w0 = self.W.detach().numpy().squeeze()
+        return w0
+    
     def get_w(self):
+        w0 = self.get_w0()
         if self.must_keep is None:
-            return self.W.detach().numpy().squeeze()
+            w = w0
         else:
             w = self.must_keep.copy()
-            w[self.must_keep == 0] += self.W.detach().numpy().squeeze()
+            w[self.must_keep == 0] += w0
         return w
 
 class _RegTsneModel(_BaseTsneModel, _ABCTsneModel):
@@ -85,7 +95,7 @@ class _RegTsneModel(_BaseTsneModel, _ABCTsneModel):
             self.beta = torch.tensor(beta, dtype=self.dtype, requires_grad=False)
         else:
             self.beta = None
-
+        
         self.init_w(w)
 
     def forward(self):
@@ -105,11 +115,21 @@ class _RegTsneModel(_BaseTsneModel, _ABCTsneModel):
         temp[range(self.n_instances), range(self.n_instances)] = 0.
 
         Q = temp / temp.sum()
-        Q = torch.max(Q, torch.tensor(1e-12 / 4, dtype=self.dtype))
+        Q = torch.max(Q, self.epsilon)
         self.Q = Q
         kl = P * torch.log(P / Q)
         kl[range(self.n_instances), range(self.n_instances)] = 0.
         return kl.sum()
+    
+    def use_gpu(self):
+        self.P = self.P.cuda()
+        self.X = self.X.cuda()
+        self.epsilon = self.epsilon.cuda()
+        if self.beta is not None:
+            self.beta = self.beta.cuda()
+        if not isinstance(self.add_pdist2, float):
+            self.add_pdist2 = self.add_pdist2.cuda()
+        self.cuda()
 
 
 class _StratifiedRegTsneModel(_BaseTsneModel, _ABCTsneModel):
@@ -173,8 +193,17 @@ class _StratifiedRegTsneModel(_BaseTsneModel, _ABCTsneModel):
                 temp[range(n_instances), range(n_instances)] = 0.
 
             Q = temp / temp.sum()
-            Q = torch.max(Q, torch.tensor(1e-12, dtype=self.dtype))
+            Q = torch.max(Q, self.epsilon)
             kl = P * torch.log(P / Q)
             kl[range(n_instances), range(n_instances)] = 0.
             loss += kl.sum()
         return loss / self.n_batches
+    
+    def use_gpu(self):
+        self.Ps = [P.cuda() for P in self.Ps]
+        self.X = [X.cuda() for X in self.Xs]
+        self.epsilon = self.epsilon.cuda()
+        if self.betas is not None:
+            self.beta = [beta.cuda() for beta in self.betas]
+        self.add_pdist2s = [add_pdist2 if isinstance(self.add_pdist2, float) else add_pdist2.cuda() for add_pdist2 in add_pdist2s]
+        self.cuda()

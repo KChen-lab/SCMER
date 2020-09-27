@@ -36,3 +36,7 @@ class _ABCTsneModel(ABC):
     @abstractmethod
     def get_w(self):
         pass
+    
+    @abstractmethod
+    def use_gpu(self):
+        pass
