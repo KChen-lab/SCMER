@@ -155,9 +155,14 @@ class TsneL1(_ABCSelector):
         tictoc = TicToc()
 
         n_features = X.shape[1]
-
-        if w is None:
+        
+        # initialize w
+        if isinstance(w, float) or isinstance(w, int):
+            w = np.zeros([1, n_features]) + w
+        elif isinstance(w, str) and w == 'uniform':
             w = np.random.uniform(size=[1, n_features])
+        elif isinstance(w, str) and w == 'ones':
+            w = np.ones([1, n_features])
         else:
             w = np.array(w).reshape([1, n_features])
 
