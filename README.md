@@ -3,6 +3,9 @@
 # marker-selection #
 Marker Selection by t-SNE and ℓ1-Regularization
 
+## Documentation ##
+Detailed documentation is available at https://marker-selection.readthedocs.io/
+
 ## Installation ##
 
 requirements: pytorch, scikit-learn, numpy, scipy
