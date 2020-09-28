@@ -135,7 +135,7 @@ class TsneL1(_ABCSelector):
 
     @classmethod
     def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None, perplexity=30., n_pcs=None, w='ones',
-             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False, n_threads=6
+             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100, return_P_beta=False, n_threads=6,
              **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
