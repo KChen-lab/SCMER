@@ -41,16 +41,9 @@ selected_adata = model.transform(adata)
 
 Note that the model has a space complexity of O(n^2), where n is the number of cells. 
 Thus, we recommend that you subsample your data to 5,000 to 10,000 cells.
-Please refer to "Full API" section for running on more cells.
+Please refer to "Advanced" section for running on more cells.
 
-### Full API ###
-```python
-model = TsneL1(self, *, w='ones', lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
-               max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
-               eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-               t_distr=True, n_threads=1)
-model.fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None)
-```
+### Advanced ###
 
 #### Marker transfering ####
 To use one set of markers (e.g., mRNA) to fit the cell-cell similarity defined by another set of markers (e.g., protein).
@@ -82,12 +75,6 @@ If you wish to use both, the lasso parameter should only contain entires whose `
 model = TsneL1(lasso=lasso[must_keep == 0])
 model.fit(rna_adata.X, must_keep=must_keep)
 ```
-#### All model parameters ####
-
-- `n_pcs`: If you want to use PCs to calculate the pairwise distances, specify the number of PCs. If you want to use the expression directly, set it to `None`. Default: `None`.
-- `w`: Initial value of w. Leaving it as `None` to randomly generate one. Default: `None`.
-- `owlqn_history_size`: History size for OWLQN optimization. Set to a smaller value if you encounter an insufficient memory problem. Default: `100`.
-- `n_threads`: Number of threads used in calculating pairwise similarity. A linear speed-up is expected so it is recommended to use all CPUs.
 
 #### Tuning ####
 ```python
@@ -98,6 +85,16 @@ TsneL1.tune(cls, target_n_features,
 ```
 
 All other parameters of ```compactmarker.TsneL1``` (except for lasso, which is to be tuned) can also be specified.
+
+### Full API ###
+Please refer to the [documentation](https://marker-selection.readthedocs.io/).
+
+#### All model parameters ####
+
+- `n_pcs`: If you want to use PCs to calculate the pairwise distances, specify the number of PCs. If you want to use the expression directly, set it to `None`. Default: `None`.
+- `w`: Initial value of w. Leaving it as `None` to randomly generate one. Default: `None`.
+- `owlqn_history_size`: History size for OWLQN optimization. Set to a smaller value if you encounter an insufficient memory problem. Default: `100`.
+- `n_threads`: Number of threads used in calculating pairwise similarity. A linear speed-up is expected so it is recommended to use all CPUs.
 
 ## Examples ##
 
