@@ -1,3 +1,5 @@
+from typing import List, Union, Optional
+
 import torch
 from typing import Type
 from ._interfaces import _ABCSelector, _ABCTsneModel
@@ -15,23 +17,28 @@ from ._torch_models import _RegTsneModel, _StratifiedRegTsneModel
 
 
 class TsneL1(_ABCSelector):
-    def __init__(self, *, w='ones', lasso=1e-4, n_pcs=None, perplexity=30., use_beta_in_Q=False,
-                 max_outer_iter=5, max_inner_iter=20, owlqn_history_size=100,
-                 eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True, n_threads=1, use_gpu=False):
+    def __init__(self, *, w: Union[float, str, list, np.ndarray] = 'ones', 
+                 lasso: float = 1e-4, n_pcs: Optional[int] = None, perplexity: float = 30., 
+                 use_beta_in_Q: bool = True, 
+                 max_outer_iter: int = 5, max_inner_iter: int = 20, owlqn_history_size: int = 100,
+                 eps: float = 1e-12, verbosity: int = 2, torch_precision: Union[int, str, torch.dtype] = 32, 
+                 torch_cdist_compute_mode: str = "use_mm_for_euclid_dist",
+                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False):
         """
         TsneL1 model
         
-        :param w:
-        :param lasso:
-        :param n_pcs:
-        :param perplexity:
-        :param use_beta_in_Q:
-        :param max_outer_iter:
-        :param max_inner_iter:
-        :param owlqn_history_size:
-        :param eps:
-        :param verbosity:
+        :param w: initial value of w, weight of each marker. Acceptable values are 'ones' (all 1), 
+            'uniform' (random [0, 1] values), float numbers (all set to that number), 
+            or a list or numpy array with specific numbers.
+        :param lasso: lasso strength
+        :param n_pcs: Number of PCs used to generate P matrix. Skip PCA if set to `None`.
+        :param perplexity: perplexity of t-SNE modeling
+        :param use_beta_in_Q: whether to use the cell specific sigma^2 calculated from P in Q. (1 / beta)
+        :param max_outer_iter: number of iterations of OWL-QN
+        :param max_inner_iter: number of iterations inside OWL-QN
+        :param owlqn_history_size: history size for OWL-QN.
+        :param eps: epsilon for considering a value to be 0.
+        :param verbosity: verbosity level (0 ~ 2).
         :param torch_precision: The dtype used inside torch model. By default, tf.float32 (a.k.a. tf.float) is used.
             However, if precision become an issue, tf.float64 may be worth trying. You can input 32, "32", 64, or "64".
         :param torch_cdist_compute_mode: cdist_compute_mode: compute mode for torch.cdist. By default,
@@ -41,6 +48,7 @@ class TsneL1(_ABCSelector):
         :param t_distr: By default, use t-distribution (1. / (1. + pdist2) for Q.
             Use Normal distribution instead (exp(-pdist2)) if set to False
         :param n_threads: number of threads (currently only for calculating P and beta)
+        :param use_gpu: whether to use GPU to train the model.
         """
         super(TsneL1, self).__init__(verbosity)
         self._max_outer_iter = max_outer_iter
@@ -110,31 +118,6 @@ class TsneL1(_ABCSelector):
     #         P, beta = self.resolve_P_beta(pcs, None, None, self._perplexity, tictoc, self.verbose_print.prints, self._n_threads)
     #     self.verbose_print(0, "Use new data to approximate the similarities...")
     #     return self._fit_core(X_student, P, beta, _RegTsneModel, tictoc)
-
-    def get_mask(self):
-        return self.w > self._eps
-
-    def transform(self, X):
-        # if mask_only:
-        return X[:, self.get_mask()]
-        # else:
-        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
-
-    def fit_transform(self, X):
-        return self.fit(X).transform(X)
-
-    @staticmethod
-    def resolve_P_beta(X, P, beta, perplexity, tictoc, print_callbacks, n_threads):
-        if P is None and beta is None:
-            print_callbacks[0]("Calculating distance matrix and scaling factors...")
-            P, beta = TsneL1.x2p(X, perplexity=perplexity, print_callback=print_callbacks[1], n_threads=n_threads)
-            print_callbacks[0]("Done.", tictoc.toc())
-        elif P is None and beta is not None:
-            print_callbacks[0]("Calculating distance matrix...")
-            P = TsneL1.x2p_given_beta(X, beta)
-            print_callbacks[0]("Done.", tictoc.toc())
-
-        return P, beta
 
     @classmethod
     def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None, perplexity=30., n_pcs=None, w='ones',
@@ -236,6 +219,32 @@ class TsneL1(_ABCSelector):
                 return model, X, P, beta
         else:
             return model
+
+    def get_mask(self):
+        return self.w > self._eps
+
+    def transform(self, X):
+        # if mask_only:
+        return X[:, self.get_mask()]
+        # else:
+        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
+
+    def fit_transform(self, X):
+        return self.fit(X).transform(X)
+
+    @staticmethod
+    def resolve_P_beta(X, P, beta, perplexity, tictoc, print_callbacks, n_threads):
+        if P is None and beta is None:
+            print_callbacks[0]("Calculating distance matrix and scaling factors...")
+            P, beta = TsneL1.x2p(X, perplexity=perplexity, print_callback=print_callbacks[1], n_threads=n_threads)
+            print_callbacks[0]("Done.", tictoc.toc())
+        elif P is None and beta is not None:
+            print_callbacks[0]("Calculating distance matrix...")
+            P = TsneL1.x2p_given_beta(X, beta)
+            print_callbacks[0]("Done.", tictoc.toc())
+
+        return P, beta
+
 
     @staticmethod
     def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print, n_threads):
