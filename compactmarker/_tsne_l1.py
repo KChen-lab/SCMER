@@ -113,10 +113,11 @@ class TsneL1(_ABCSelector):
         Automatically find proper lasso strength that returns the preferred number of markers
 
         :param target_n_features: number of features
-        :param : all other parameters are the same for a TsneL1 model or :func:`_tsne_l1.TsneL1.fit`.
+        :param return_P_beta: controls what to return
+        :param kwargs: all other parameters are the same for a TsneL1 model or :func:`TsneL1.fit`.
         :return: if return_P_beta is True and there are batches, (model, X, P, beta);
                  if return_P_beta is True and there is no batches, (model, P, beta);
-                 otherwise, only model.
+                 otherwise, only model by default.
         """
         if "lasso" in kwargs:
             raise ValueError("Parameter lasso should be substituted by max_lasso and min_lasso to set a range.")
@@ -218,7 +219,7 @@ class TsneL1(_ABCSelector):
         """
         Shrink a matrix / AnnData object with full markers to the selected markers only.
         If such operation is not supported by your data object,
-        you can do it manually using :func:`~_tsne_l1.TsneL1.get_mask`.
+        you can do it manually using :func:`~TsneL1.get_mask`.
 
         :param X: Matrix / AnnData to be shrunk
         :return: Shrunk matrix / Anndata
@@ -233,7 +234,7 @@ class TsneL1(_ABCSelector):
         Fit on a matrix / AnnData and then transfer it.
 
         :param X: The matrix / AnnData to be transformed
-        :param kwargs: Other parameters for :func:`_tsne_l1.TsneL1.fit`.
+        :param kwargs: Other parameters for :func:`TsneL1.fit`.
         :return: Shrunk matrix / Anndata
         """
         return self.fit(X, **kwargs).transform(X)
