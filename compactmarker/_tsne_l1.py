@@ -20,7 +20,8 @@ class TsneL1(_ABCSelector):
                  eps=1e-12, verbosity=2, torch_precision=32, torch_cdist_compute_mode="use_mm_for_euclid_dist",
                  t_distr=True, n_threads=1, use_gpu=False):
         """
-
+        TsneL1 model
+        
         :param w:
         :param lasso:
         :param n_pcs:
@@ -60,6 +61,7 @@ class TsneL1(_ABCSelector):
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
         """
         Select markers from one dataset to keep the cell-cell similarities in the same dataset
+        
         :param X: data matrix (cells (rows) x genes/proteins (columns))
         :param X_teacher: get target similarities from this dataset
         :param batches: (optional) batch labels
@@ -94,6 +96,7 @@ class TsneL1(_ABCSelector):
     # def fit2(self, X_student, X_teacher):
     #     """
     #     Select markers from one dataset to keep the cell-cell similarities in another dataset
+    
     #     :param X_teacher: get target similarities from this dataset
     #     :param X_student: choose markers from this dataset
     #     :return:
@@ -139,6 +142,7 @@ class TsneL1(_ABCSelector):
              **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
+        
         :param X: Expression matrix, cells x features
         :param target_n_features: number of features
         :param kwargs: all other parameters for a TsneL1 model
