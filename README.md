@@ -1,4 +1,4 @@
-# marker-selection # [![Documentation Status](https://readthedocs.org/projects/marker-selection/badge/?version=latest)](https://marker-selection.readthedocs.io/en/latest/?badge=latest)
+# marker-selection [![Documentation Status](https://readthedocs.org/projects/marker-selection/badge/?version=latest)](https://marker-selection.readthedocs.io/en/latest/?badge=latest) #
 Marker Selection by t-SNE and ℓ1-Regularization
 
 ## Documentation ##
