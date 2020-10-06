@@ -97,7 +97,7 @@ class TsneL1(_ABCSelector):
                                                self._n_threads)
         else:
             model_class = _StratifiedRegTsneModel
-            if P is not None:
+            if P is None:
                 X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc,
                                                    self.verbose_print, self._n_threads)
 

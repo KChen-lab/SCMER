@@ -145,8 +145,11 @@ class _StratifiedRegTsneModel(_BaseTsneModel, _ABCTsneModel):
             raise ValueError("Lengths of Ps and Xs must be equal.")
 
         if betas is not None:
+            self.betas = betas
             if not (len(Ps) == self.n_batches):
                 raise ValueError("Lengths of Xs and betas must be equal.")
+        else:
+            self.betas = betas
 
         self.Ps = [torch.tensor(self.preprocess_P(P), dtype=self.dtype, requires_grad=False) for P in Ps]
 
@@ -184,8 +187,8 @@ class _StratifiedRegTsneModel(_BaseTsneModel, _ABCTsneModel):
             Y = X * self.W
             pdist2 = torch.square(torch.cdist(Y, Y, compute_mode=self.cdist_compute_mode)) + add_pdist2
 
-            if self.beta is not None:
-                pdist2 = pdist2 * self.beta
+            if self.betas is not None:
+                pdist2 = pdist2 * self.betas[batch]
                 pdist2 = (pdist2 + pdist2.T) / 2.
 
             if self.t_distr:
