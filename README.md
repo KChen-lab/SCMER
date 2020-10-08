@@ -1,5 +1,5 @@
 # marker-selection [![Documentation Status](https://readthedocs.org/projects/marker-selection/badge/?version=latest)](https://marker-selection.readthedocs.io/en/latest/?badge=latest) #
-Marker Selection by t-SNE and ℓ1-Regularization
+Marker Selection by matching manifolds
 
 ## Documentation ##
 Detailed documentation is available at https://marker-selection.readthedocs.io/
