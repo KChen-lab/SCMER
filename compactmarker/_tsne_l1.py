@@ -2,7 +2,7 @@ from typing import List, Union, Optional
 
 import torch
 from typing import Type
-from ._interfaces import _ABCSelector, _ABCTsneModel
+from ._interfaces import _ABCSelector, _ABCTorchModel
 from ._owlqn import OWLQN
 
 import warnings
@@ -13,7 +13,7 @@ import scipy.stats
 from sklearn.decomposition import PCA
 
 from ._utils import TicToc, VerbosePrint
-from ._torch_models import _RegTsneModel, _StratifiedRegTsneModel # , _SimpleRegTsneModel
+from ._tsne_torch_models import _RegTsneModel, _StratifiedRegTsneModel # , _SimpleRegTsneModel
 
 
 class TsneL1(_ABCSelector):
@@ -277,7 +277,7 @@ class TsneL1(_ABCSelector):
             betas.append(new_beta)
         return Xs, Ps, betas
 
-    def _fit_core(self, X, P, beta, must_keep, model_class: Type[_ABCTsneModel], tictoc):
+    def _fit_core(self, X, P, beta, must_keep, model_class: Type[_ABCTorchModel], tictoc):
 
         self.verbose_print(0, "Optimizing...")
         if self._use_beta_in_Q:

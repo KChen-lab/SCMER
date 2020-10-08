@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from ._utils import VerbosePrint
+from torch import nn
 
 
 class _ABCSelector(ABC):
@@ -20,7 +21,7 @@ class _ABCSelector(ABC):
         pass
 
 
-class _ABCTsneModel(ABC):
+class _ABCTorchModel(ABC):
     @abstractmethod
     def __init__(self, P, X, w, beta, dtype, cdist_compute_mode, t_distr, must_keep):
         pass
