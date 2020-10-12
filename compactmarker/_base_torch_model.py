@@ -6,7 +6,7 @@ from ._interfaces import _ABCTorchModel
 
 
 class _BaseTorchModel(nn.Module, _ABCTorchModel):
-    def __init__(self, dtype=torch.float, cdist_compute_mode="use_mm_for_euclid_dist", t_distr=True, must_keep=None):
+    def __init__(self, dtype=torch.float, cdist_compute_mode="use_mm_for_euclid_dist", t_distr=True, must_keep=None, ridge=0.):
         super(_BaseTorchModel, self).__init__()
         if dtype == "32" or dtype == 32:
             self.dtype = torch.float32
@@ -21,6 +21,7 @@ class _BaseTorchModel(nn.Module, _ABCTorchModel):
             self.must_keep = must_keep.squeeze()
         self.cdist_compute_mode = cdist_compute_mode
         self.t_distr = t_distr
+        self.ridge = ridge
 
     def preprocess_X(self, X):
         if self.must_keep is None:
