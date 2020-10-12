@@ -23,14 +23,15 @@ class UmapL1(_ABCSelector):
                  max_outer_iter: int = 5, max_inner_iter: int = 20, owlqn_history_size: int = 100,
                  eps: float = 1e-12, verbosity: int = 2, torch_precision: Union[int, str, torch.dtype] = 32,
                  torch_cdist_compute_mode: str = "use_mm_for_euclid_dist",
-                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False, pca_seed=0, ridge=0.):
+                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False, pca_seed=0, ridge=0.,
+                 _keep_fitting_info = False):
         """
         UmapL1 model
 
         :param w: initial value of w, weight of each marker. Acceptable values are 'ones' (all 1),
             'uniform' (random [0, 1] values), float numbers (all set to that number),
             or a list or numpy array with specific numbers.
-        :param lasso: lasso strength
+        :param lasso: lasso strength (i.e., strength of L1 regularization in elastic net)
         :param n_pcs: Number of PCs used to generate P matrix. Skip PCA if set to `None`.
         :param perplexity: perplexity of t-SNE modeling
         :param use_beta_in_Q: whether to use the cell specific sigma^2 calculated from P in Q. (1 / beta)
@@ -49,6 +50,9 @@ class UmapL1(_ABCSelector):
             Use Normal distribution instead (exp(-pdist2)) if set to False
         :param n_threads: number of threads (currently only for calculating P and beta)
         :param use_gpu: whether to use GPU to train the model.
+        :param pca_seed: random seed used by PCA (if applicable)
+        :param ridge: ridge strength (i.e., strength of L2 regularization in elastic net)
+        :param _keep_fitting_info: if `True`, write similarity matrix P to `self.P` and PyTorch model to `self.model`
         """
         super(UmapL1, self).__init__(verbosity)
         self._max_outer_iter = max_outer_iter
@@ -67,6 +71,8 @@ class UmapL1(_ABCSelector):
         self._use_gpu = use_gpu
         self._pca_seed = pca_seed
         self._ridge = ridge
+        self._keep_fitting_info = _keep_fitting_info
+
 
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
         """
@@ -105,7 +111,9 @@ class UmapL1(_ABCSelector):
                 X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc,
                                                    self.verbose_print, self._n_threads)
 
-        self.P = P
+        if self._keep_fitting_info:
+            self.P = P
+
         return self._fit_core(X, P, beta, must_keep, model_class, tictoc)
 
     @classmethod
@@ -304,7 +312,9 @@ class UmapL1(_ABCSelector):
             self.verbose_print(0, "Optimizing using LBFGS (because lasso is zero)...")
             optimizer = torch.optim.LBFGS(model.parameters(), line_search_fn="strong_wolfe",
                                           max_iter=self._max_inner_iter, history_size=self._owlqn_history_size, lr=1.)
-        self.model = model
+
+        if self._keep_fitting_info:
+            self.model = model
 
         for t in range(self._max_outer_iter):
             def closure():
