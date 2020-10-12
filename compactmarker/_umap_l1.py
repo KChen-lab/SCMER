@@ -495,7 +495,7 @@ class UmapL1(_ABCSelector):
 
         # Return final P-matrix
         print_callback("Mean value of sigma: %f" % np.mean(np.sqrt(1 / beta)))
-        print(P)
-        print(beta)
+        # print(P)
+        # print(beta)
         # raise NotImplementedError("...")
         return P, beta
