@@ -23,7 +23,7 @@ class TsneL1(_ABCSelector):
                  max_outer_iter: int = 5, max_inner_iter: int = 20, owlqn_history_size: int = 100,
                  eps: float = 1e-12, verbosity: int = 2, torch_precision: Union[int, str, torch.dtype] = 32,
                  torch_cdist_compute_mode: str = "use_mm_for_euclid_dist",
-                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False):
+                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False, pca_seed=0, ridge=0.):
         """
         TsneL1 model
 
@@ -65,6 +65,8 @@ class TsneL1(_ABCSelector):
         self._t_distr = t_distr
         self._n_threads = n_threads
         self._use_gpu = use_gpu
+        self._pca_seed = pca_seed
+        self._ridge = ridge
 
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
         """
@@ -85,14 +87,14 @@ class TsneL1(_ABCSelector):
 
         if batches is None:
             if must_keep is None and (isinstance(self._lasso, float) or isinstance(self._lasso, str)):
-                model_class = _RegTsneModel #_SimpleRegTsneModel
+                model_class = _RegTsneModel  # _SimpleRegTsneModel
             else:
                 model_class = _RegTsneModel
             if self._n_pcs is None:
                 P, beta = self._resolve_P_beta(X_teacher, P, beta, self._perplexity, tictoc, self.verbose_print.prints,
                                                self._n_threads)
             else:
-                pcs = PCA(self._n_pcs).fit_transform(X_teacher)
+                pcs = PCA(self._n_pcs, random_state=self._pca_seed).fit_transform(X_teacher)
                 P, beta = self._resolve_P_beta(pcs, P, beta, self._perplexity, tictoc, self.verbose_print.prints,
                                                self._n_threads)
         else:
@@ -282,10 +284,10 @@ class TsneL1(_ABCSelector):
         self.verbose_print(0, "Optimizing...")
         if self._use_beta_in_Q:
             model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode,
-                                self._t_distr, must_keep)
+                                self._t_distr, must_keep, self._ridge)
         else:
             model = model_class(P, X, self.w, None, self._torch_precision, self._torch_cdist_compute_mode,
-                                self._t_distr, must_keep)
+                                self._t_distr, must_keep, self._ridge)
 
         if self._use_gpu:
             model.use_gpu()

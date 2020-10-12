@@ -7,7 +7,7 @@ from ._base_torch_model import _BaseTorchModel
 
 
 class _BaseTsneModel(_BaseTorchModel):
-    def __init__(self, dtype=torch.float, cdist_compute_mode="use_mm_for_euclid_dist", t_distr=True, must_keep=None):
+    def __init__(self, dtype=torch.float, cdist_compute_mode="use_mm_for_euclid_dist", t_distr=True, must_keep=None, ridge=0.):
         """
         Base class for tsne models
         :param cdist_compute_mode: compute mode for torch.cdist. By default, "use_mm_for_euclid_dist" to (daramatically)
@@ -16,7 +16,7 @@ class _BaseTsneModel(_BaseTorchModel):
         :param dtype: The dtype used inside torch model. By default, tf.float32 (a.k.a. tf.float) is used.
             However, if precision become an issue, tf.float64 may be worth trying.
         """
-        super(_BaseTsneModel, self).__init__(dtype, cdist_compute_mode, t_distr, must_keep)
+        super(_BaseTsneModel, self).__init__(dtype, cdist_compute_mode, t_distr, must_keep, ridge)
 
         self.epsilon = torch.tensor(1e-12 / 4, dtype=self.dtype)
 
@@ -32,8 +32,8 @@ class _BaseTsneModel(_BaseTorchModel):
 
 class _RegTsneModel(_BaseTsneModel):
     def __init__(self, P, X, w, beta, dtype=torch.float, cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True, must_keep=None):
-        super(_RegTsneModel, self).__init__(dtype, cdist_compute_mode, t_distr, must_keep)
+                 t_distr=True, must_keep=None, ridge=0.):
+        super(_RegTsneModel, self).__init__(dtype, cdist_compute_mode, t_distr, must_keep, ridge)
 
         self.P = torch.tensor(self.preprocess_P(P), dtype=self.dtype, requires_grad=False)
         self.X, self.add_pdist2, self.n_instances, self.n_features = self.preprocess_X(X)
@@ -66,7 +66,10 @@ class _RegTsneModel(_BaseTsneModel):
 
         kl = P * torch.log(P / Q)
         kl[range(self.n_instances), range(self.n_instances)] = 0.
-        return kl.sum()
+        if self.ridge > 0.:
+            return kl.sum() + torch.sum(self.W ** 2) * self.ridge
+        else:
+            return kl.sum()
 
     def use_gpu(self):
         self.P = self.P.cuda()
@@ -81,8 +84,8 @@ class _RegTsneModel(_BaseTsneModel):
 
 class _StratifiedRegTsneModel(_BaseTsneModel):
     def __init__(self, Ps, Xs, w, betas, dtype=torch.float, cdist_compute_mode="use_mm_for_euclid_dist",
-                 t_distr=True, must_keep=None):
-        super(_StratifiedRegTsneModel, self).__init__(dtype, cdist_compute_mode, t_distr, must_keep)
+                 t_distr=True, must_keep=None, ridge=0.):
+        super(_StratifiedRegTsneModel, self).__init__(dtype, cdist_compute_mode, t_distr, must_keep, ridge)
 
         self.n_batches = len(Xs)
 
@@ -155,7 +158,7 @@ class _StratifiedRegTsneModel(_BaseTsneModel):
         self.X = [X.cuda() for X in self.Xs]
         self.epsilon = self.epsilon.cuda()
         if self.betas is not None:
-            self.beta = [beta.cuda() for beta in self.betas]
+            self.betas = [beta.cuda() for beta in self.betas]
         self.add_pdist2s = [add_pdist2 if isinstance(self.add_pdist2, float) else add_pdist2.cuda()
                             for add_pdist2 in self.add_pdist2s]
         self.cuda()
