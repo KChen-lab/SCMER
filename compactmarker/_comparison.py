@@ -51,3 +51,15 @@ class Comparison:
                    f"overlapping genes are {', '.join(res[3])}."
         else:
             return res
+
+    @staticmethod
+    def make_recall_curve(y_true, y_pred):
+        y = [0]
+        x = [0]
+        for i, g in enumerate(y_pred):
+            if g in y_true:
+                y.append(y[-1])
+                y.append(y[-1] + 1)
+                x.append(i - 1)
+                x.append(i)
+        return x, y
