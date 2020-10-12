@@ -23,7 +23,7 @@ class UmapL1(_ABCSelector):
                  max_outer_iter: int = 5, max_inner_iter: int = 20, owlqn_history_size: int = 100,
                  eps: float = 1e-12, verbosity: int = 2, torch_precision: Union[int, str, torch.dtype] = 32,
                  torch_cdist_compute_mode: str = "use_mm_for_euclid_dist",
-                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False):
+                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False, pca_seed=0, ridge=0.):
         """
         UmapL1 model
 
@@ -65,6 +65,8 @@ class UmapL1(_ABCSelector):
         self._t_distr = t_distr
         self._n_threads = n_threads
         self._use_gpu = use_gpu
+        self._pca_seed = pca_seed
+        self._ridge = ridge
 
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
         """
@@ -93,7 +95,7 @@ class UmapL1(_ABCSelector):
                 P, beta = self._resolve_P_beta(X_teacher, P, beta, self._perplexity, tictoc, self.verbose_print.prints,
                                                self._n_threads)
             else:
-                pcs = PCA(self._n_pcs).fit_transform(X_teacher)
+                pcs = PCA(self._n_pcs, random_state=self._pca_seed).fit_transform(X_teacher)
                 # print(pcs)
                 P, beta = self._resolve_P_beta(pcs, P, beta, self._perplexity, tictoc, self.verbose_print.prints,
                                                self._n_threads)
@@ -282,19 +284,26 @@ class UmapL1(_ABCSelector):
 
     def _fit_core(self, X, P, beta, must_keep, model_class: Type[_ABCTorchModel], tictoc):
 
-        self.verbose_print(0, "Optimizing...")
         if self._use_beta_in_Q:
+            self.verbose_print(0, "Creating model without batches...")
             model = model_class(P, X, self.w, beta, self._torch_precision, self._torch_cdist_compute_mode,
-                                self._t_distr, must_keep)
+                                self._t_distr, must_keep, ridge=self._ridge)
         else:
+            self.verbose_print(0, "Creating batch-stratified model...")
             model = model_class(P, X, self.w, None, self._torch_precision, self._torch_cdist_compute_mode,
-                                self._t_distr, must_keep)
+                                self._t_distr, must_keep, ridge=self._ridge)
 
         if self._use_gpu:
             model.use_gpu()
 
-        optimizer = OWLQN(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
-                          max_iter=self._max_inner_iter, history_size=self._owlqn_history_size, lr=1.)
+        if self._lasso > 0.:
+            self.verbose_print(0, "Optimizing using OWLQN (because lasso is nonzero)...")
+            optimizer = OWLQN(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
+                              max_iter=self._max_inner_iter, history_size=self._owlqn_history_size, lr=1.)
+        else:
+            self.verbose_print(0, "Optimizing using LBFGS (because lasso is zero)...")
+            optimizer = torch.optim.LBFGS(model.parameters(), line_search_fn="strong_wolfe",
+                                          max_iter=self._max_inner_iter, history_size=self._owlqn_history_size, lr=1.)
         self.model = model
 
         for t in range(self._max_outer_iter):
@@ -334,10 +343,11 @@ class UmapL1(_ABCSelector):
             precision of a Gaussian distribution.
         """
         # Compute P-row and corresponding perplexity
-        P = np.zeros(D.shape)
-        k = 100
-        mask = np.argpartition(P, k)[:k]
-        P[mask] = np.exp(-(D[mask] - np.min(D[mask])) * beta)
+        #P = np.zeros(D.shape)
+        #k = 100
+        #mask = np.argpartition(P, k)[:k]
+        #P[mask] = np.exp(-(D[mask] - np.min(D[mask])) * beta)
+        P = np.exp(-(D - np.min(D)) * beta)
         H = sum(P)
         return H, P
 
