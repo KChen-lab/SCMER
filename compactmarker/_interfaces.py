@@ -9,7 +9,7 @@ class _ABCSelector(ABC):
         self.verbose_print = VerbosePrint(verbosity)
 
     @abstractmethod
-    def fit(self, X):
+    def fit(self, X, **kwargs):
         pass
 
     @abstractmethod
@@ -17,7 +17,7 @@ class _ABCSelector(ABC):
         pass
 
     @abstractmethod
-    def fit_transform(self, X):
+    def fit_transform(self, X, **kwargs):
         pass
 
 

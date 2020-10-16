@@ -3,28 +3,28 @@ from typing import List, Union, Optional
 import torch
 from typing import Type
 from ._interfaces import _ABCSelector, _ABCTorchModel
+from ._base_selector import _BaseSelector
 from ._owlqn import OWLQN
 
 import warnings
 import multiprocessing
 import numpy as np
 
-import scipy.stats
 from sklearn.decomposition import PCA
 
 from ._utils import TicToc, VerbosePrint
 from ._umap_torch_models import _RegUmapModel, _StratifiedRegUmapModel # , _SimpleRegTsneModel
 
 
-class UmapL1(_ABCSelector):
+class UmapL1(_BaseSelector):
     def __init__(self, *, w: Union[float, str, list, np.ndarray] = 'ones',
                  lasso: float = 1e-4, n_pcs: Optional[int] = None, perplexity: float = 30.,
                  use_beta_in_Q: bool = True,
                  max_outer_iter: int = 5, max_inner_iter: int = 20, owlqn_history_size: int = 100,
                  eps: float = 1e-12, verbosity: int = 2, torch_precision: Union[int, str, torch.dtype] = 32,
                  torch_cdist_compute_mode: str = "use_mm_for_euclid_dist",
-                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False, pca_seed=0, ridge=0.,
-                 _keep_fitting_info = False):
+                 t_distr: bool = True, n_threads: int = 1, use_gpu: bool = False, pca_seed: int = 0, ridge: float = 0.,
+                 _keep_fitting_info: bool = False):
         """
         UmapL1 model
 
@@ -46,32 +46,17 @@ class UmapL1(_ABCSelector):
             "use_mm_for_euclid_dist" to (daramatically) improve performance. However, if numerical stability became an
             issue, "donot_use_mm_for_euclid_dist" may be used instead. This option does not affect distances computed
             outside of pytorch, e.g., matrix P. Only matrix Q is affect.
-        :param t_distr: By default, use t-distribution (1. / (1. + pdist2) for Q.
-            Use Normal distribution instead (exp(-pdist2)) if set to False
+        :param t_distr: By default, use t-distribution (1. / (1. + pdist2)) for Q.
+            Use Normal distribution instead (exp(-pdist2)) if set to False. The latter one is not stable.
         :param n_threads: number of threads (currently only for calculating P and beta)
         :param use_gpu: whether to use GPU to train the model.
         :param pca_seed: random seed used by PCA (if applicable)
         :param ridge: ridge strength (i.e., strength of L2 regularization in elastic net)
         :param _keep_fitting_info: if `True`, write similarity matrix P to `self.P` and PyTorch model to `self.model`
         """
-        super(UmapL1, self).__init__(verbosity)
-        self._max_outer_iter = max_outer_iter
-        self._max_inner_iter = max_inner_iter
-        self._owlqn_history_size = owlqn_history_size
-        self._n_pcs = n_pcs
-        self.w = w
-        self._lasso = lasso
-        self._eps = eps
-        self._use_beta_in_Q = use_beta_in_Q
-        self._perplexity = perplexity
-        self._torch_precision = torch_precision
-        self._torch_cdist_compute_mode = torch_cdist_compute_mode
-        self._t_distr = t_distr
-        self._n_threads = n_threads
-        self._use_gpu = use_gpu
-        self._pca_seed = pca_seed
-        self._ridge = ridge
-        self._keep_fitting_info = _keep_fitting_info
+        super(UmapL1, self).__init__(w, lasso, n_pcs, perplexity, use_beta_in_Q, max_outer_iter, max_inner_iter,
+                                     owlqn_history_size, eps, verbosity, torch_precision, torch_cdist_compute_mode,
+                                     t_distr, n_threads, use_gpu, pca_seed, ridge, _keep_fitting_info)
 
 
     def fit(self, X, *, X_teacher=None, batches=None, P=None, beta=None, must_keep=None):
@@ -109,7 +94,7 @@ class UmapL1(_ABCSelector):
             model_class = _StratifiedRegUmapModel
             if P is None:
                 X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc,
-                                                   self.verbose_print, self._n_threads)
+                                                   self.verbose_print, self._pca_seed, self._n_threads)
 
         if self._keep_fitting_info:
             self.P = P
@@ -219,39 +204,6 @@ class UmapL1(_ABCSelector):
         else:
             return model
 
-    def get_mask(self):
-        """
-        Get the feature selection mask.
-        For AnnData in scanpy, it can be used as adata[:, model.get_mask()]
-
-        :return: mask
-        """
-        return self.w > self._eps
-
-    def transform(self, X):
-        """
-        Shrink a matrix / AnnData object with full markers to the selected markers only.
-        If such operation is not supported by your data object,
-        you can do it manually using :func:`~UmapL1.get_mask`.
-
-        :param X: Matrix / AnnData to be shrunk
-        :return: Shrunk matrix / Anndata
-        """
-        # if mask_only:
-        return X[:, self.get_mask()]
-        # else:
-        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
-
-    def fit_transform(self, X, **kwargs):
-        """
-        Fit on a matrix / AnnData and then transfer it.
-
-        :param X: The matrix / AnnData to be transformed
-        :param kwargs: Other parameters for :func:`UmapL1.fit`.
-        :return: Shrunk matrix / Anndata
-        """
-        return self.fit(X, **kwargs).transform(X)
-
     @staticmethod
     def _resolve_P_beta(X, P, beta, perplexity, tictoc, print_callbacks, n_threads):
         if P is None and beta is None:
@@ -266,7 +218,7 @@ class UmapL1(_ABCSelector):
         return P, beta
 
     @staticmethod
-    def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print, n_threads):
+    def _resolve_batches(X, beta, batches, n_pcs, perplexity, tictoc, verbose_print, pca_seed, n_threads):
         batches = np.array(batches)
         batch_names = np.unique(batches)
         Xs = []
@@ -284,7 +236,7 @@ class UmapL1(_ABCSelector):
                     new_beta = None
                 P, new_beta = UmapL1._resolve_P_beta(Xs[-1], None, new_beta, perplexity, tictoc, verbose_print.prints, n_threads)
             else:
-                pcs = PCA(n_pcs).fit_transform(Xs[-1])
+                pcs = PCA(n_pcs, random_state=pca_seed).fit_transform(Xs[-1])
                 P, new_beta = UmapL1._resolve_P_beta(pcs, None, None, perplexity, tictoc, verbose_print.prints, n_threads)
             Ps.append(P)
             betas.append(new_beta)
@@ -318,19 +270,12 @@ class UmapL1(_ABCSelector):
 
         for t in range(self._max_outer_iter):
             def closure():
-                # print(model.W)
-                # print((np.abs(model.W.detach().numpy()) > self._eps).sum())
                 if torch.is_grad_enabled():
                     optimizer.zero_grad()
                 loss = model.forward()
-                # print(loss)
-                # print(model.Q)
+
                 if loss.requires_grad:
                     loss.backward()
-                    # print(model.Q.grad)
-                    # print((np.isnan(model.Q.grad.detach().numpy())).sum())
-                    # print(model.W.grad)
-                    # print((np.isnan(model.W.grad.detach().numpy())).sum())
 
                 return loss
 
