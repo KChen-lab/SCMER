@@ -31,26 +31,37 @@ class _BaseSelector(_ABCSelector):
         self._ridge = ridge
         self._keep_fitting_info = _keep_fitting_info
 
-    def get_mask(self):
+    def get_mask(self, target_n_features=None):
         """
         Get the feature selection mask.
         For AnnData in scanpy, it can be used as adata[:, model.get_mask()]
 
+        :param target_n_features: If None, all features with w > 0 are selected. If not None, only select
+            `target_n_features` largest features
         :return: mask
         """
-        return self.w > self._eps
+        if target_n_features is None:
+            return self.w > 0.
+        else:
+            n_nonzero = (self.w > 0.).sum()
+            if target_n_features > n_nonzero:
+                raise ValueError(f"Only {n_nonzero} features have nonzero weights. "
+                                 f"target_n_features may not exceed the number.")
+            return self.w >= self.w[np.argpartition(self.w, -target_n_features)[-target_n_features]]
 
-    def transform(self, X):
+    def transform(self, X, target_n_features=None, **kwargs):
         """
         Shrink a matrix / AnnData object with full markers to the selected markers only.
         If such operation is not supported by your data object,
         you can do it manually using :func:`~UmapL1.get_mask`.
 
         :param X: Matrix / AnnData to be shrunk
+        :param target_n_features: If None, all features with w > 0 are selected. If not None, only select
+            `target_n_features` largest features
         :return: Shrunk matrix / Anndata
         """
         # if mask_only:
-        return X[:, self.get_mask()]
+        return X[:, self.get_mask(target_n_features)]
         # else:
         #    return X[:, self.get_mask()] * self.w[self.get_mask()]
 
