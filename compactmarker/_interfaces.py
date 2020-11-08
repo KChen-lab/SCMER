@@ -13,7 +13,7 @@ class _ABCSelector(ABC):
         pass
 
     @abstractmethod
-    def transform(self, X):
+    def transform(self, X, **kwargs):
         pass
 
     @abstractmethod
