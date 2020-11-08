@@ -45,6 +45,11 @@ class _BaseUmapModel(_BaseTorchModel):
         Q = torch.max(Q, self.epsilon)
 
         mask = P > 0.
+
+        #print(Q.shape)
+        #print(P.shape)
+        #print(mask.shape)
+
         Q = Q[mask]
         P = P[mask]
 

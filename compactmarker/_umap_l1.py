@@ -72,9 +72,10 @@ class UmapL1(_BaseSelector):
         :return:
         """
         tictoc = TicToc()
-
+        trans = True
         if X_teacher is None: # if there is no other assay to mimic, just mimic itself
             X_teacher = X
+            trans = False
 
         if batches is None:
             if must_keep is None and (isinstance(self._lasso, float) or isinstance(self._lasso, str)):
@@ -93,8 +94,19 @@ class UmapL1(_BaseSelector):
         else:
             model_class = _StratifiedRegUmapModel
             if P is None:
-                X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc,
-                                                   self.verbose_print, self._pca_seed, self._n_threads)
+                if trans:
+                    Xs = []
+                    for batch in np.unique(batches):
+                        batch_mask = (batches == batch)
+                        Xs.append(X[batch_mask, :])
+                    X = Xs
+                    _, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc,
+                                                       self.verbose_print, self._pca_seed, self._n_threads)
+                else:
+                    X, P, beta = self._resolve_batches(X_teacher, None, batches, self._n_pcs, self._perplexity, tictoc,
+                                                       self.verbose_print, self._pca_seed, self._n_threads)
+            else:
+                raise NotImplementedError()
 
         if self._keep_fitting_info:
             self.P = P
@@ -283,11 +295,13 @@ class UmapL1(_BaseSelector):
             self.verbose_print(1, t, 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                                tictoc.toc())
 
+            self.w = model.get_w()
+
         loss = model.forward()
         self.verbose_print(1, 'final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                            tictoc.toc())
 
-        self.w = model.get_w()
+        # self.w = model.get_w()
 
         return self
 
@@ -429,7 +443,7 @@ class UmapL1(_BaseSelector):
         D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
         D = np.sqrt(np.maximum(D, 0))
 
-        print(D)
+        # print(D)
 
         logU = np.log2(perplexity)
 
