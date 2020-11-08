@@ -17,17 +17,17 @@ Assuming that you have a dataset in the form of a `scanpy`/`AnnData` object `ada
 
 First, import the module:
 ```python
-from compactmarker import TsneL1
+from compactmarker import UmapL1
 ```
 
 Then, if you want to train the model with a given strength of l1-regularization:
 ```python
-model = TsneL1(lasso=1e-3).fit(adata.X)
+model = UmapL1(lasso=1e-3).fit(adata.X)
 ```
 
 Or, if you want to keep a specific number of features:
 ```python
-model_20 = TsneL1.tune(target_n_features=20, X=adata.X)
+model_20 = UmapL1.tune(target_n_features=20, X=adata.X)
 ```
 It will perform a binary search on strength of l1-regularization to find the one 
 giving desired number of features.
@@ -61,7 +61,7 @@ Incidentally, this approach also reduces the memory requirement. If a dataset wi
 If there are markers you think that should be considered with priority, there are two ways to indicate/enforce it.
 1. Use a vector as the parameter `lasso`, and set the corresponding entries to 0. In this way, you remove l1-regularization for that gene.
 ```python
-model = TsneL1(lasso=[0., 0., 1e-5, 1e-5, 1e-5, ...])
+model = UmapL1(lasso=[0., 0., 1e-5, 1e-5, 1e-5, ...])
 model.fit(rna_adata.X)
 ```
 2. Set `must_keep` to nonzero values
@@ -70,19 +70,19 @@ model.fit(rna_adata.X, must_keep=[1., 1., 0., 0., 0., ...])
 ```
 If you wish to use both, the lasso parameter should only contain entires whose `must_keep` status is zero. For example:
 ```python
-model = TsneL1(lasso=lasso[must_keep == 0])
+model = UmapL1(lasso=lasso[must_keep == 0])
 model.fit(rna_adata.X, must_keep=must_keep)
 ```
 
 #### Tuning ####
 ```python
-TsneL1.tune(cls, target_n_features, 
+UmapL1.tune(cls, target_n_features, 
             X=None, X_teacher=None, batches=None, P=None, beta=None, perplexity=30., n_pcs=None, w=None,
             min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
             **kwargs)
 ```
 
-All other parameters of ```compactmarker.TsneL1``` (except for lasso, which is to be tuned) can also be specified.
+All other parameters of ```compactmarker.UmapL1``` (except for lasso, which is to be tuned) can also be specified.
 
 ### Full API ###
 Please refer to the [documentation](https://marker-selection.readthedocs.io/).
