@@ -28,10 +28,12 @@ class _BaseUmapModel(_BaseTorchModel):
         #P = np.maximum(P, 1e-12)
         return P
 
-
-    def calc_kl(self, P, X, W, beta):
+    def calc_kl(self, P, X, W, beta, add_pdist2):
         Y = X * W
-        pdist2 = (torch.cdist(Y, Y, compute_mode=self.cdist_compute_mode))  # + add_pdist2
+        if isinstance(add_pdist2, float):
+            pdist2 = torch.cdist(Y, Y, compute_mode=self.cdist_compute_mode)
+        else:
+            pdist2 = torch.sqrt(torch.square(torch.cdist(Y, Y, compute_mode=self.cdist_compute_mode)) + add_pdist2)
         pdist2 = pdist2 - torch.min(pdist2.clone().fill_diagonal_(float("inf")), dim=1, keepdim=True)[0]
 
         if beta is not None:
@@ -74,7 +76,7 @@ class _RegUmapModel(_BaseUmapModel):
         self.init_w(w)
 
     def forward(self):
-        kl = self.calc_kl(self.P, self.X, self.W, self.beta)
+        kl = self.calc_kl(self.P, self.X, self.W, self.beta, self.add_pdist2)
         if self.ridge > 0.:
             return kl + torch.sum(self.W ** 2) * self.ridge
         else:
@@ -137,7 +139,8 @@ class _StratifiedRegUmapModel(_BaseUmapModel):
         loss = 0
         for batch in range(self.n_batches):
             loss += self.calc_kl(self.Ps[batch], self.Xs[batch], self.W,
-                                 self.betas[batch] if self.betas is not None else None)
+                                 self.betas[batch] if self.betas is not None else None,
+                                 self.add_pdist2s[batch])
         if self.ridge > 0.:
             return loss / self.n_batches + torch.sum(self.W ** 2) * self.ridge
         else:
