@@ -17,7 +17,7 @@ Assuming that you have a dataset in the form of a `scanpy`/`AnnData` object `ada
 
 First, import the module:
 ```python
-from compactmarker import UmapL1
+from scmer import UmapL1
 ```
 
 Then, if you want to train the model with a given strength of l1-regularization:
