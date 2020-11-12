@@ -86,7 +86,7 @@ UmapL1.tune(cls, target_n_features,
 All other parameters of ```compactmarker.UmapL1``` (except for lasso, which is to be tuned) can also be specified.
 
 ### Full API ###
-Please refer to the [documentation](https://marker-selection.readthedocs.io/).
+Please refer to the [documentation](https://scmer.readthedocs.io/en/latest/).
 
 #### All model parameters ####
 
