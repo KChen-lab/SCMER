@@ -7,7 +7,7 @@ Welcome to feature-selection's documentation! |Documentation Status|
 ====================================================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    examples

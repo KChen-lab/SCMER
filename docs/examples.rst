@@ -1,4 +1,4 @@
-Examples
+Vignettes
 =======================
 
 scRNA
@@ -32,6 +32,7 @@ The genes encoding those proteins are not always the best.
    :maxdepth: 2
 
    pbmc-cite-seq
+   pbmc-cite-seq-preselected
 
 Supplementary
 -------------
