@@ -3,7 +3,7 @@
 Marker Selection by matching manifolds
 
 ## Documentation ##
-Detailed documentation is available at https://marker-selection.readthedocs.io/
+Detailed documentation is available at https://scmer.readthedocs.io/en/latest/
 
 ## Installation ##
 
