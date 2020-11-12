@@ -1,7 +1,7 @@
-compactmarker
-=============
+SCMER package contents
+=======================
 
-.. toctree::
-   :maxdepth: 4
-
-   compactmarker
+.. automodule:: scmer
+   :members:
+   :undoc-members:
+   :show-inheritance:

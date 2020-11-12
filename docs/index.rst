@@ -9,14 +9,15 @@ Welcome to feature-selection's documentation! |Documentation Status|
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-   
+
+   examples
    modules
-   
+   license
 
 Introduction
 =======================================
 
-Marker Selection by t-SNE and ℓ1-Regularization
+Marker Selection by t-SNE and Elastic Net
 
 Installation
 ------------
@@ -38,7 +39,7 @@ First, import the module:
 
 .. code:: python
 
-    from compactmarker import TsneL1
+    from scmer import TsneL1
 
 Then, if you want to train the model with a given strength of
 l1-regularization:
@@ -138,7 +139,7 @@ Tuning
                 min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
                 **kwargs)
 
-All other parameters of ``compactmarker.TsneL1`` (except for lasso,
+All other parameters of ``scmer.TsneL1`` (except for lasso,
 which is to be tuned) can also be specified.
 
 Full API
