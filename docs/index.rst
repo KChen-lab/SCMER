@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to feature-selection's documentation! |Documentation Status|
+Welcome to SCMER's documentation! |Documentation Status|
 ====================================================================
 
 .. toctree::
