@@ -171,8 +171,9 @@ Examples
 
 Please refer to ``notebooks/`` for a few examples.
 
-.. |Documentation Status| image:: https://readthedocs.org/projects/marker-selection/badge/?version=latest
-   :target: https://marker-selection.readthedocs.io/en/latest/?badge=latest
+.. |Documentation Status| image:: https://readthedocs.org/projects/scmer/badge/?version=latest
+   :target: https://scmer.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
    
 Indices and tables
