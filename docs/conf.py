@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../notebooks'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'feature-selection'
+project = 'SCMER'
 copyright = '2020, Shaoheng Liang'
 author = 'Shaoheng Liang'
 
