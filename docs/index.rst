@@ -3,16 +3,19 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to SCMER's documentation! |Documentation Status|
-====================================================================
+SCMER |Documentation Status|
+===========================================
 
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
 
    examples
+   qna
    modules
+   citation
    license
+   contact
 
 Introduction
 =======================================
