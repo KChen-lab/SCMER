@@ -1,4 +1,5 @@
 import setuptools
+from pathlib import Path
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
