@@ -1,6 +1,6 @@
 # SCMER [![Documentation Status](https://readthedocs.org/projects/scmer/badge/?version=latest)](https://scmer.readthedocs.io/en/latest/?badge=latest)
 
-Marker Selection by matching manifolds
+Single-cell Feature Selection by matching manifolds
 
 ## Documentation ##
 Detailed documentation is available at https://scmer.readthedocs.io/en/latest/
