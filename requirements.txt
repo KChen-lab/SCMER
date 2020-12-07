@@ -1,6 +1,6 @@
 torch
+scikit-learn==0.23.2
 numpy
-scikit-learn
 scipy
 pandas
 seaborn
