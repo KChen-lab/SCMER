@@ -292,13 +292,14 @@ class UmapL1(_BaseSelector):
                 return loss
 
             loss = optimizer.step(closure)
-            self.verbose_print(1, t, 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
+            self.verbose_print(1, t, 'loss (before this step):', loss.item(),
+                               "Nonzero (after):", (np.abs(model.get_w0()) > self._eps).sum(),
                                tictoc.toc())
 
             self.w = model.get_w()
 
         loss = model.forward()
-        self.verbose_print(1, 'final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
+        self.verbose_print(1, 'Final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                            tictoc.toc())
 
         # self.w = model.get_w()
