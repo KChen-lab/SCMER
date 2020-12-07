@@ -5,6 +5,8 @@ Single-cell Feature Selection by matching manifolds
 ## Documentation ##
 Detailed documentation is available at https://scmer.readthedocs.io/en/latest/
 
+The mechanism and capabilities of SCMER is detailed in our pre-print [Single-Cell Manifold Preserving Feature Selection (SCMER)](https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1)
+
 ## Installation ##
 
 requirements: pytorch, scikit-learn, numpy, scipy
