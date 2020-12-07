@@ -1,6 +1,6 @@
 torch
-scikit-learn
 numpy
+scikit-learn
 scipy
 pandas
 seaborn
