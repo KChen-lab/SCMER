@@ -1,4 +1,4 @@
-Vignettes
+Tutorials
 =======================
 
 scRNA
