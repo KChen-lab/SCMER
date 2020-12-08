@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="scmer-lshh125",
-    version="0.0.1",
+    version="v0.1.0-alpha",
     author="Shaoheng Liang",
     author_email="",
     description="Marker selection",
