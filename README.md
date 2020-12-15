@@ -6,6 +6,7 @@ It can also be used for data integration by using features in one modality to ma
 
 ## Tutorials ##
 Tutorials are available at https://scmer.readthedocs.io/en/latest/examples.html
+
 You may start with the [Melanoma data (Tiorsh et al.)](https://scmer.readthedocs.io/en/latest/melanoma.html).
 
 ## Full Documentation ##
