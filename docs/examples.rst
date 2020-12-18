@@ -31,8 +31,8 @@ The genes encoding those proteins are not always the best.
 .. toctree::
    :maxdepth: 2
 
-   cite-seq-bmnc-donor2-validation
    cite-seq-bmnc-donor1-selection
+   cite-seq-bmnc-donor2-validation
    pbmc-cite-seq
    pbmc-cite-seq-preselected
 
