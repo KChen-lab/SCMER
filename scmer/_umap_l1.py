@@ -66,9 +66,10 @@ class UmapL1(_BaseSelector):
         :param X: data matrix (cells (rows) x genes/proteins (columns))
         :param X_teacher: get target similarities from this dataset
         :param batches: (optional) batch labels
-        :param P:
-        :param beta:
-        :param must_keep:
+        :param P: The P matrix, if calculated in advance
+        :param beta: The beta associated with P, if calculated in advance
+        :param must_keep: A boolean vector indicating if a feature must be kept.
+            Those features will have a fixed weight 1.
         :return:
         """
         tictoc = TicToc()
