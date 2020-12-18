@@ -56,5 +56,5 @@ A simulation study is also available.
 .. toctree::
    :maxdepth: 2
 
-   Simulation
+   simulation
 
