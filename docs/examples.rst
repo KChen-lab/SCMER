@@ -31,6 +31,8 @@ The genes encoding those proteins are not always the best.
 .. toctree::
    :maxdepth: 2
 
+   cite-seq-bmnc-donor2-validation
+   cite-seq-bmnc-donor1-selection
    pbmc-cite-seq
    pbmc-cite-seq-preselected
 
@@ -45,4 +47,14 @@ Other files such as gene sets supporting the analyses can be found `here <https:
 
    a549-atac-peak
    pbmc-cite-seq-rna
+
+Simulation
+----------
+
+A simulation study is also available.
+
+.. toctree::
+   :maxdepth: 2
+
+   Simulation
 
