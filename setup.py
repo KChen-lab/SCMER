@@ -9,11 +9,11 @@ setuptools.setup(
     version="v0.1.0-alpha",
     author="Shaoheng Liang",
     author_email="",
-    description="Marker selection",
+    description="Manifold preserving marker selection for single-cell data",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="",
-    packages=setuptools.find_packages(),
+    url="https://scmer.readthedocs.io/",
+    packages=['scmer'], #setuptools.find_packages(),
     install_requires=[
         l.strip() for l in Path('requirements.txt').read_text('utf-8').splitlines()
     ],

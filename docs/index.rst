@@ -2,8 +2,9 @@
    sphinx-quickstart on Sun Sep 27 23:32:24 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
+|Documentation Status| |PyPi Status|
 
-SCMER - Manifold Preserving Feature Selection |Documentation Status|
+SCMER - Manifold Preserving Feature Selection
 ======================================================================
 
 SCMER is a feature selection methods designed for single-cell data analysis.
@@ -34,3 +35,7 @@ Indices and tables
 .. |Documentation Status| image:: https://readthedocs.org/projects/scmer/badge/?version=latest
    :target: https://scmer.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
+
+.. |PyPi Status| image:: https://img.shields.io/pypi/v/scmer-lshh125?color=blue&logo=pypi
+   :target: https://pypi.org/project/scmer-lshh125
+   :alt: PyPI
