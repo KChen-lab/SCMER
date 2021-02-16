@@ -61,10 +61,7 @@ class _BaseSelector(_ABCSelector):
             `target_n_features` largest features
         :return: Shrunk matrix / Anndata
         """
-        # if mask_only:
         return X[:, self.get_mask(target_n_features)]
-        # else:
-        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
 
     def fit_transform(self, X, **kwargs):
         """

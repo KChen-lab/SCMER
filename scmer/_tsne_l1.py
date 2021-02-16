@@ -295,35 +295,25 @@ class TsneL1(_ABCSelector):
 
         optimizer = OWLQN(model.parameters(), lasso=self._lasso, line_search_fn="strong_wolfe",
                           max_iter=self._max_inner_iter, history_size=self._owlqn_history_size)
-        #self.model = model
 
         for t in range(self._max_outer_iter):
             def closure():
-                # print(model.W)
-                # print((np.abs(model.W.detach().numpy()) > self._eps).sum())
                 if torch.is_grad_enabled():
                     optimizer.zero_grad()
                 loss = model.forward()
-                # print(loss)
-                # print(model.Q)
                 if loss.requires_grad:
                     loss.backward()
-                    # print(model.Q.grad)
-                    # print((np.isnan(model.Q.grad.detach().numpy())).sum())
-                    # print(model.W.grad)
-                    # print((np.isnan(model.W.grad.detach().numpy())).sum())
 
                 return loss
 
             loss = optimizer.step(closure)
             self.verbose_print(1, t, 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                                tictoc.toc())
+            self.w = model.get_w()
 
         loss = model.forward()
         self.verbose_print(1, 'final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                            tictoc.toc())
-
-        self.w = model.get_w()
 
         return self
 
@@ -337,8 +327,6 @@ class TsneL1(_ABCSelector):
         # Compute P-row and corresponding perplexity
         P = np.exp(-D.copy() * beta)
         sumP = sum(P)
-        # print(sumP)
-        # H = np.log(sumP) + beta * np.sum(D * P) / sumP
         P = P / sumP
         H = scipy.stats.entropy(P)
         return H, P
@@ -373,9 +361,6 @@ class TsneL1(_ABCSelector):
             betamax = np.inf
             Di = D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))]
             (H, thisP) = TsneL1._Hbeta(Di, beta[i])
-
-            # if i % 500 == 0:
-            # print(H, thisP)
 
             # Evaluate whether the perplexity is within tolerance
             Hdiff = H - logU

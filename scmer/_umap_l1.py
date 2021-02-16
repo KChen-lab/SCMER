@@ -143,10 +143,7 @@ class UmapL1(_BaseSelector):
             `target_n_features` largest features
         :return: Shrunk matrix / Anndata
         """
-        # if mask_only:
         return X[:, self.get_mask(target_n_features)]
-        # else:
-        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
 
     def fit_transform(self, X, **kwargs):
         """
@@ -341,13 +338,11 @@ class UmapL1(_BaseSelector):
                                "Nonzero (after):", (np.abs(model.get_w0()) > self._eps).sum(),
                                tictoc.toc())
 
-            self.w = model.get_w()
+            self.w = model.get_w() # In case the user wants to interrupt the training
 
         loss = model.forward()
         self.verbose_print(1, 'Final', 'loss:', loss.item(), "Nonzero:", (np.abs(model.get_w0()) > self._eps).sum(),
                            tictoc.toc())
-
-        # self.w = model.get_w()
 
         return self
 
@@ -358,10 +353,6 @@ class UmapL1(_BaseSelector):
             precision of a Gaussian distribution.
         """
         # Compute P-row and corresponding perplexity
-        #P = np.zeros(D.shape)
-        #k = 100
-        #mask = np.argpartition(P, k)[:k]
-        #P[mask] = np.exp(-(D[mask] - np.min(D[mask])) * beta)
         P = np.exp(-(D - np.min(D)) * beta)
         H = sum(P)
         return H, P
@@ -397,9 +388,6 @@ class UmapL1(_BaseSelector):
             betamax = np.inf
             Di = D[i, np.concatenate((np.r_[0:i], np.r_[i + 1:n]))]
             (H, thisP) = UmapL1._Hbeta(Di, beta[i])
-
-            # if i % 500 == 0:
-            # print(H, thisP)
 
             # Evaluate whether the perplexity is within tolerance
             Hdiff = H - logU
@@ -488,9 +476,6 @@ class UmapL1(_BaseSelector):
         sum_X = np.sum(np.square(X), 1)
         D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
         D = np.sqrt(np.maximum(D, 0))
-
-        # print(D)
-
         logU = np.log2(perplexity)
 
         # Loop over all datapoints
@@ -510,7 +495,4 @@ class UmapL1(_BaseSelector):
 
         # Return final P-matrix
         print_callback("Mean value of sigma: %f" % np.mean(np.sqrt(1 / beta)))
-        # print(P)
-        # print(beta)
-        # raise NotImplementedError("...")
         return P, beta

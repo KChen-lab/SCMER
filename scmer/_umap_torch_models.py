@@ -25,7 +25,7 @@ class _BaseUmapModel(_BaseTorchModel):
         P = P + P.T - P * P.T
         P = P / np.sum(P)
         P = np.maximum(P, 0.)
-        #P = np.maximum(P, 1e-12)
+
         return P
 
     def calc_kl(self, P, X, W, beta, add_pdist2):
@@ -47,10 +47,6 @@ class _BaseUmapModel(_BaseTorchModel):
         Q = torch.max(Q, self.epsilon)
 
         mask = P > 0.
-
-        #print(Q.shape)
-        #print(P.shape)
-        #print(mask.shape)
 
         Q = Q[mask]
         P = P[mask]
