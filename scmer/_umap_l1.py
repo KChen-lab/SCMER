@@ -114,6 +114,50 @@ class UmapL1(_BaseSelector):
 
         return self._fit_core(X, P, beta, must_keep, model_class, tictoc)
 
+    def get_mask(self, target_n_features=None):
+        """
+        Get the feature selection mask.
+        For AnnData in scanpy, it can be used as adata[:, model.get_mask()]
+
+        :param target_n_features: If None, all features with w > 0 are selected. If not None, only select
+            `target_n_features` largest features
+        :return: mask
+        """
+        if target_n_features is None:
+            return self.w > 0.
+        else:
+            n_nonzero = (self.w > 0.).sum()
+            if target_n_features > n_nonzero:
+                raise ValueError(f"Only {n_nonzero} features have nonzero weights. "
+                                 f"target_n_features may not exceed the number.")
+            return self.w >= self.w[np.argpartition(self.w, -target_n_features)[-target_n_features]]
+
+    def transform(self, X, target_n_features=None, **kwargs):
+        """
+        Shrink a matrix / AnnData object with full markers to the selected markers only.
+        If such operation is not supported by your data object,
+        you can do it manually using :func:`~UmapL1.get_mask`.
+
+        :param X: Matrix / AnnData to be shrunk
+        :param target_n_features: If None, all features with w > 0 are selected. If not None, only select
+            `target_n_features` largest features
+        :return: Shrunk matrix / Anndata
+        """
+        # if mask_only:
+        return X[:, self.get_mask(target_n_features)]
+        # else:
+        #    return X[:, self.get_mask()] * self.w[self.get_mask()]
+
+    def fit_transform(self, X, **kwargs):
+        """
+        Fit on a matrix / AnnData and then transfer it.
+
+        :param X: The matrix / AnnData to be transformed
+        :param kwargs: Other parameters for :func:`UmapL1.fit`.
+        :return: Shrunk matrix / Anndata
+        """
+        return self.fit(X, **kwargs).transform(X)
+
     @classmethod
     def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None,
              P=None, beta=None, must_keep=None, perplexity=30., n_pcs=None, w='ones',
