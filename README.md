@@ -1,5 +1,5 @@
 # SCMER - Manifold Preserving Feature Selection 
-[![Documentation Status](https://readthedocs.org/projects/scmer/badge/?version=latest)](https://scmer.readthedocs.io/en/latest/?badge=latest) [![PyPI](https://img.shields.io/pypi/v/scmer-lshh125?color=blue&logo=pypi)](https://pypi.org/project/scmer)
+[![Documentation Status](https://readthedocs.org/projects/scmer/badge/?version=latest)](https://scmer.readthedocs.io/en/latest/?badge=latest) [![PyPI](https://img.shields.io/pypi/v/scmer?color=blue&logo=pypi)](https://pypi.org/project/scmer)
 
 SCMER is a feature selection methods designed for single-cell data analysis. 
 It selects a compact sets of markers that preserve the manifold in the original data.
