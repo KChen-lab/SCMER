@@ -3,7 +3,7 @@ Installation
 
 Right now SCMER is avaialbe on GitHub, you can run::
 
-    pip install scmer-lshh125
+    pip install scmer
 
 to install from PyPI or::
 

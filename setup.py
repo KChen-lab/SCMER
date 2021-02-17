@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="scmer-lshh125",
+    name="scmer",
     version="v0.1.0-alpha",
     author="Shaoheng Liang",
     author_email="",
