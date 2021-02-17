@@ -36,6 +36,6 @@ Indices and tables
    :target: https://scmer.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-.. |PyPi Status| image:: https://img.shields.io/pypi/v/scmer-lshh125?color=blue&logo=pypi
-   :target: https://pypi.org/project/scmer-lshh125
+.. |PyPi Status| image:: https://img.shields.io/pypi/v/scmer?color=blue&logo=pypi
+   :target: https://pypi.org/project/scmer
    :alt: PyPI
