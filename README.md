@@ -13,6 +13,10 @@ You may start with the [Melanoma data (Tiorsh et al.)](https://scmer.readthedocs
 ## Full Documentation ##
 Detailed documentation is available at https://scmer.readthedocs.io/en/latest/
 
-Preprint: https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1.full
-
 The mechanism and capabilities of SCMER is detailed in our pre-print [Single-Cell Manifold Preserving Feature Selection (SCMER)](https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1)
+
+## Publication ##
+Single-cell manifold-preserving feature selection for detecting rare cell populations *Nature Computational Science* (2021)
+- Paid access: https://www.nature.com/articles/s43588-021-00070-7
+- Free access (no download): https://rdcu.be/ckZGT
+- BioRxiv preprint: https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1.full
