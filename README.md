@@ -20,3 +20,7 @@ Single-cell manifold-preserving feature selection for detecting rare cell popula
 - Paid access: https://www.nature.com/articles/s43588-021-00070-7
 - Free access (no download): https://rdcu.be/ckZGT
 - BioRxiv preprint: https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1.full
+
+## Contact ##
+I do monitor the "Issues" and aim to clear any issues in a few weeks.
+If you have an urgent request, please email liang.shaoheng@rice.edu.
