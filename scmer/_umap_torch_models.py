@@ -144,10 +144,10 @@ class _StratifiedRegUmapModel(_BaseUmapModel):
 
     def use_gpu(self):
         self.Ps = [P.cuda() for P in self.Ps]
-        self.X = [X.cuda() for X in self.Xs]
+        self.Xs = [X.cuda() for X in self.Xs]
         self.epsilon = self.epsilon.cuda()
         if self.betas is not None:
             self.betas = [beta.cuda() for beta in self.betas]
-        self.add_pdist2s = [add_pdist2 if isinstance(self.add_pdist2, float) else add_pdist2.cuda()
+        self.add_pdist2s = [add_pdist2 if isinstance(add_pdist2, float) else add_pdist2.cuda()
                             for add_pdist2 in self.add_pdist2s]
         self.cuda()
