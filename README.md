@@ -15,6 +15,12 @@ Detailed documentation is available at https://scmer.readthedocs.io/en/latest/
 
 The mechanism and capabilities of SCMER is detailed in our pre-print [Single-Cell Manifold Preserving Feature Selection (SCMER)](https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1)
 
+## Running in R ##
+Python is more established in machine learning tasks, but many people prefer R as their primary language in data science. Luckily, a thin wrapper is what you need to run SCMER in R. Please see this short [tutorial](https://htmlpreview.github.io/?https://github.com/KChen-lab/SCMER/blob/master/notebooks/melanoma-gpu-with-batch-in-r.nb.html).
+
+## Additional package info
+Using GPU can be tricky sometimes. Here is a [list of package versions](https://github.com/KChen-lab/SCMER/blob/master/notebooks/package_versions.txt) we successfully used with GPU.
+
 ## Publication ##
 Single-cell manifold-preserving feature selection for detecting rare cell populations *Nature Computational Science* (2021)
 - Paid access: https://www.nature.com/articles/s43588-021-00070-7
