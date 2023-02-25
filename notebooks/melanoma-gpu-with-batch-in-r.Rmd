@@ -4,6 +4,9 @@ output: html_notebook
 ---
 
 ## Choose the conda env
+You'll need to first install SCMER in the environment. Please check the [tutorial](https://scmer.readthedocs.io/en/latest/install.html) for details.
+
+To run with GPU, you need to first install the GPU version of [Pytorch](https://pytorch.org/get-started/locally/).
 ```{r}
 library(reticulate)
 reticulate::use_condaenv("torch")
