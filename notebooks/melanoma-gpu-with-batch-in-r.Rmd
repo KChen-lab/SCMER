@@ -50,3 +50,6 @@ model$fit(mat, batches=batch)
 genes[py_to_r(model$get_mask())]
 ```
 
+```{r}
+sessionInfo()
+```
