@@ -1,0 +1,52 @@
+---
+title: "Run SCMER through R"
+output: html_notebook
+---
+
+## Choose the conda env
+```{r}
+library(reticulate)
+reticulate::use_condaenv("torch")
+```
+
+## Read in data
+```{r}
+
+# We use the melanoma dataset as a illustration.
+# The data is log-transformed and scaled.
+mat <- read.table(gzfile('melanoma.txt.gz'), header = FALSE)
+mat <- as.matrix(mat)
+
+genes <- read.table("genes.txt")$V1
+
+batch <- read.table("melanoma_batches.txt")$V1
+```
+
+## Add the folder for SCMER into path and import SCMER
+
+```{r}
+# The next two lines are not required if you've installed SCMER
+sys <- import("sys", convert = FALSE)
+sys$path$append("..")
+
+scmer <- import("scmer", convert = FALSE)
+```
+
+## Create a model
+Pay attention to the "as.integer" for n_pcs and n_threads. They are required.
+
+```{r}
+model = scmer$UmapL1(lasso=5e-4, n_pcs=as.integer(20), 
+                              perplexity=30., use_beta_in_Q=TRUE, n_threads=as.integer(12), use_gpu=TRUE)
+```
+
+## Run the model
+
+```{r}
+model$fit(mat, batches=batch)
+```
+## Get the results
+```{r}
+genes[py_to_r(model$get_mask())]
+```
+
