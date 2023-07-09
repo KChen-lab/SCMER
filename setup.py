@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="scmer",
-    version="v0.1.0a3",
+    version="v0.1.1",
     author="Shaoheng Liang",
     author_email="",
     description="Manifold preserving marker selection for single-cell data",
