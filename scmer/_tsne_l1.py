@@ -83,8 +83,16 @@ class TsneL1(_ABCSelector):
         """
         tictoc = TicToc()
 
+        trans = True
+
+        X = np.array(X)
+        
         if X_teacher is None: # if there is no other assay to mimic, just mimic itself
             X_teacher = X
+            trans = False
+        else:
+            X_teacher = np.array(X_teacher)
+
 
         if batches is None:
             if must_keep is None and (isinstance(self._lasso, float) or isinstance(self._lasso, str)):
