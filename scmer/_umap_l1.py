@@ -76,6 +76,9 @@ class UmapL1(_BaseSelector):
         trans = True
 
         X = np.array(X)
+
+        if must_keep is not None:
+            must_keep = np.array(must_keep, dtype=float)
         
         if X_teacher is None: # if there is no other assay to mimic, just mimic itself
             X_teacher = X
