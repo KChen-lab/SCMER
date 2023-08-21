@@ -31,7 +31,7 @@ Single-cell manifold-preserving feature selection for detecting rare cell popula
 
 ## Contact ##
 I do monitor the "Issues" and aim to clear any issues in a few weeks.
-If you have an urgent request, please email liang.shaoheng@rice.edu.
+If you have an urgent request, please email `shaohengliang@gmail.com`.
 
 ## Version log ##
 - 0.1.1 (6/8/2023) Fixed an issue that caused an error when `np.matrix` is used instead of `np.array`.
