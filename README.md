@@ -10,6 +10,14 @@ Tutorials are available at https://scmer.readthedocs.io/en/latest/examples.html
 
 You may start with the [Melanoma data (Tiorsh et al.)](https://scmer.readthedocs.io/en/latest/melanoma.html).
 
+## Long Term Support ##
+We try to keep the package work with new versions of Python and other dependencies. 
+Lastest tested version: python 3.11 + torch 2.1.1
+OS: Windows 10.
+Hardware: AMD Ryzen R5 3600 + Nvidia RTX 3080
+For other tested version, please check the `lts` folder in this repository.
+The four scripts in the folder can also give you an idea of how to run SCMER for a given scenario.
+
 ### Running in R ###
 Python is more established in machine learning tasks, but many people prefer R as their primary language in data science. Luckily, a thin wrapper is what you need to run SCMER in R. Please see this short [tutorial](https://htmlpreview.github.io/?https://github.com/KChen-lab/SCMER/blob/master/notebooks/melanoma-gpu-with-batch-in-r.nb.html).
 
