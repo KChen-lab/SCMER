@@ -10,16 +10,27 @@ Tutorials are available at https://scmer.readthedocs.io/en/latest/examples.html
 
 You may start with the [Melanoma data (Tiorsh et al.)](https://scmer.readthedocs.io/en/latest/melanoma.html).
 
-To install the latest version here, you can do
+
+### Installation ###
+The latest version is 0.1.3 that can be installed through PyPI. For example,
+```bash
+conda create -n py311_scmer python=3.11 jupyter git
+conda activate py311_scmer
+conda install -c conda-forge scanpy python-igraph leidenalg
+pip install git+https://github.com/KChen-lab/SCMER
+git clone https://github.com/KChen-lab/SCMER
 ```
-pip install git+https://github.com/KChen-lab/SCMER/
+To add GPU support, install a proper version of [PyTorch](https://pytorch.org/get-started/locally/). For example,
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
-## Long Term Support ##
+### Long Term Support ###
 We try to keep the package work with new versions of Python and other dependencies. 
-Lastest tested version: python 3.11 + torch 2.1.1 + SCANPY 1.9.6
-OS: Windows 10.
-Hardware: AMD Ryzen R5 3600 + Nvidia RTX 3080
+- Lastest tested version: python 3.11 + torch 2.1.1 + SCANPY 1.9.6
+- OS: Windows 10.
+- Hardware: AMD Ryzen R5 3600 + Nvidia RTX 3080
+
 For other tested version, please check the `lts` folder in this repository.
 The four scripts in the folder can also give you an idea of how to run SCMER for a given scenario.
 
@@ -47,7 +58,7 @@ I do monitor the "Issues" and aim to clear any issues in a few weeks.
 If you have an urgent request, please email `shaohengliang@gmail.com`.
 
 ## Version log ##
-- 0.1.2 (12/7/2023) SCMER now compatible with Python 3.11 + torch 2.1.1 + SCANPY 1.9.6; pending uploading to PyPI; please use `pip install git+https://github.com/KChen-lab/SCMER/` to install.
+- 0.1.3 (12/8/2023) SCMER now compatible with Python 3.11 + torch 2.1.1 + SCANPY 1.9.6.
 - 0.1.1 (6/8/2023) Fixed an issue that caused an error when `np.matrix` is used instead of `np.array`.
 - 0.1.0a4 (2/12/2023) Fixed an issue that caused an error when batch correction is enabled on GPU runs. CPU runs were not affected. 
 - 0.1.0a3 (2/17/2021) Initial version.
