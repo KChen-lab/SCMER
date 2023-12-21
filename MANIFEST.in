@@ -1,4 +1,5 @@
 recursive-exclude docs *
+recursive-exclude lts *
 recursive-exclude notebooks *
 exclude data-and-code-for-figures-and-tables.zip
 include requirements.txt
