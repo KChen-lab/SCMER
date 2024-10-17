@@ -5,6 +5,9 @@ SCMER is a feature selection methods designed for single-cell data analysis.
 It selects a compact sets of markers that preserve the manifold in the original data.
 It can also be used for data integration by using features in one modality to match the manifold of another modality.
 
+## Contact ##
+Please use the "Issues" to submit a question. You should get a reply in a few days. If not, please don't hesitate to email `shaohengliang@gmail.com` to bring it to my attention.
+
 ## Tutorials ##
 Tutorials are available at https://scmer.readthedocs.io/en/latest/examples.html
 
@@ -52,10 +55,6 @@ Single-cell manifold-preserving feature selection for detecting rare cell popula
 - Paid access: https://www.nature.com/articles/s43588-021-00070-7
 - Free access (no download): https://rdcu.be/ckZGT
 - BioRxiv preprint: https://www.biorxiv.org/content/10.1101/2020.12.01.407262v1.full
-
-## Contact ##
-I do monitor the "Issues" and aim to clear any issues in a few weeks.
-If you have an urgent request, please email `shaohengliang@gmail.com`.
 
 ## Version log ##
 - 0.1.3 (12/8/2023) SCMER now compatible with Python 3.11 + torch 2.1.1 + SCANPY 1.9.6.
