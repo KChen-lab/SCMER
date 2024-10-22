@@ -167,7 +167,7 @@ class UmapL1(_BaseSelector):
     def tune(cls, target_n_features, X=None, *, X_teacher=None, batches=None,
              P=None, beta=None, must_keep=None, perplexity=30., n_pcs=None, w='ones',
              min_lasso=1e-8, max_lasso=1e-2, tolerance=0, smallest_log10_fold_change=0.1, max_iter=100,
-             return_P_beta=False, n_threads=6,
+             return_P_beta=False, n_threads=6, pca_seed=0,
              **kwargs):
         """
         Automatically find proper lasso strength that returns the preferred number of markers
@@ -216,7 +216,7 @@ class UmapL1(_BaseSelector):
         else:
             model_class = _StratifiedRegUmapModel
             if P is None:
-                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print,
+                X, P, beta = cls._resolve_batches(X_teacher, None, batches, n_pcs, perplexity, tictoc, verbose_print, pca_seed,
                                                   n_threads)
 
         sup = n_features
